@@ -52,8 +52,8 @@ public sealed class AccBroadcastService : BackgroundService
         var port = _configuration.GetValue<int>("Acc:Port", 9000);
         var displayName = _configuration.GetValue<string>("Acc:DisplayName") ?? "AccEnduranceServer";
         var connectionPassword = _configuration.GetValue<string>("Acc:Password") ?? "";
-    var commandPassword = _configuration.GetValue<string>("Acc:CommandPassword") ?? "";
-    var msInterval = _configuration.GetValue<int>("Acc:UpdateIntervalMs", 100);
+        var commandPassword = _configuration.GetValue<string>("Acc:CommandPassword") ?? "";
+        var msInterval = _configuration.GetValue<int>("Acc:UpdateIntervalMs", 100);
 
         _logger.LogInformation("Connecting to ACC at {Ip}:{Port}...", ip, port);
 
