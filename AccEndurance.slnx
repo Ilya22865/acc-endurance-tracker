@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AccEndurance.Agent/AccEndurance.Agent.csproj" />
+    <Project Path="src/AccEndurance.Broadcaster/AccEndurance.Broadcaster.csproj" />
+    <Project Path="src/AccEndurance.Client/AccEndurance.Client.csproj" />
+    <Project Path="src/AccEndurance.Domain/AccEndurance.Domain.csproj" />
+    <Project Path="src/AccEndurance.Server/AccEndurance.Server.csproj" />
+    <Project Path="src/AccEndurance.Shared/AccEndurance.Shared.csproj" />
+  </Folder>
+</Solution>
