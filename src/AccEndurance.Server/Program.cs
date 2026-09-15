@@ -2,9 +2,21 @@ using AccEndurance.Server.Hubs;
 using AccEndurance.Server.Services;
 using AccEndurance.Domain;
 using AccEndurance.Server.Controllers;
+using AccEndurance.Server.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AccEndurance", "logs");
+try
+{
+    Directory.CreateDirectory(logDir);
+}
+catch
+{
+    logDir = Path.Combine(Path.GetTempPath(), "AccEndurance-logs");
+}
+builder.Logging.AddProvider(new FileLoggerProvider(Path.Combine(logDir, "server.log")));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

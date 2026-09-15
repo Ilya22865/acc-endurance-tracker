@@ -10,6 +10,13 @@ public sealed class BroadcastingProtocol : IDisposable
     private readonly UdpClient _client;
     private readonly CancellationTokenSource _cts = new();
     private readonly object _lock = new();
+    private readonly string _displayName;
+    private readonly string _connectionPassword;
+    private readonly int _msInterval;
+    private readonly string _commandPassword;
+
+    private volatile bool _registered;
+    private DateTime _lastMessageUtc = DateTime.UtcNow;
 
     public int ConnectionId { get; private set; }
     public string ConnectionIdentifier { get; }
@@ -29,11 +36,38 @@ public sealed class BroadcastingProtocol : IDisposable
         string connectionPassword = "", string commandPassword = "", int msRealtimeUpdateInterval = 100)
     {
         ConnectionIdentifier = $"{ip}:{port}";
+        _displayName = displayName;
+        _connectionPassword = connectionPassword;
+        _commandPassword = commandPassword;
+        _msInterval = msRealtimeUpdateInterval;
         _client = new UdpClient();
         _client.Connect(ip, port);
         _ = ListenerLoopAsync(_cts.Token);
+        _ = RegistrationLoopAsync(_cts.Token);
+    }
 
-        RequestConnection(displayName, connectionPassword, msRealtimeUpdateInterval, commandPassword);
+    private async Task RegistrationLoopAsync(CancellationToken ct)
+    {
+        // ACC не прощает одноразовую регистрацию: если игра запустилась позже
+        // сервера или перезапустилась, нужно заново послать Register.
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                if (!_registered)
+                {
+                    RequestConnection(_displayName, _connectionPassword, _msInterval, _commandPassword);
+                }
+                else if (DateTime.UtcNow - _lastMessageUtc > TimeSpan.FromSeconds(10))
+                {
+                    // от игры давно ничего не шло — считаем связь потерянной
+                    _registered = false;
+                }
+            }
+            catch { }
+
+            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+        }
     }
 
     private async Task ListenerLoopAsync(CancellationToken ct)
@@ -68,6 +102,7 @@ public sealed class BroadcastingProtocol : IDisposable
 
     private void ProcessMessage(BinaryReader reader)
     {
+        _lastMessageUtc = DateTime.UtcNow;
         var messageType = (InboundMessageTypes)reader.ReadByte();
         switch (messageType)
         {
@@ -80,8 +115,13 @@ public sealed class BroadcastingProtocol : IDisposable
                 OnConnectionStateChanged?.Invoke($"{(success ? "Connected" : "Failed")}, readonly={isReadonly}, error={error}");
                 if (success)
                 {
+                    _registered = true;
                     SendRequest(RequestType.EntryList);
                     SendRequest(RequestType.TrackData);
+                }
+                else
+                {
+                    _registered = false;
                 }
                 break;
             }

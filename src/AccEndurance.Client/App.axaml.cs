@@ -26,6 +26,19 @@ public partial class App : Application
 
     private static string GetServerAddress()
     {
+        // приоритет: файл server.url рядом с exe (удобно для команды),
+        // затем переменная окружения ACC_SERVER, иначе localhost
+        try
+        {
+            var file = Path.Combine(AppContext.BaseDirectory, "server.url");
+            if (File.Exists(file))
+            {
+                var s = (File.ReadAllText(file) ?? "").Trim();
+                if (s.Length > 0) return s;
+            }
+        }
+        catch { /* ignore */ }
+
         var env = System.Environment.GetEnvironmentVariable("ACC_SERVER");
         return !string.IsNullOrWhiteSpace(env) ? env : "localhost:5261";
     }
