@@ -30,6 +30,9 @@ public sealed class CarStateDto
     public int? DeltaMs { get; set; }
 
     public bool IsOurCar { get; set; }
+
+    // Все поля — значения/строки, поэтому поверхностной копии достаточно.
+    public CarStateDto Clone() => (CarStateDto)MemberwiseClone();
 }
 
 public sealed class RealtimeStateDto
@@ -47,6 +50,8 @@ public sealed class RealtimeStateDto
     public int? BestSessionLapMs { get; set; }
     public int TrackMeters { get; set; }
     public string TrackName { get; set; } = "";
+
+    public RealtimeStateDto Clone() => (RealtimeStateDto)MemberwiseClone();
 }
 
 public sealed class StintDto
@@ -63,11 +68,14 @@ public sealed class StintDto
     public string? Notes { get; set; }
     public double? PlannedFuelLiters { get; set; }
     public int? PlannedLaps { get; set; }
+
+    public StintDto Clone() => (StintDto)MemberwiseClone();
 }
 
 public sealed class TelemetrySampleDto
 {
     public string DriverId { get; set; } = "";
+    public int StintId { get; set; }
     public DateTime Timestamp { get; set; }
     public float Gas { get; set; }
     public float Brake { get; set; }

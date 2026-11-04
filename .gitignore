@@ -4,5 +4,7 @@ obj/
 .vs/
 .idea/
 artifacts/
+publish/
+releases/
 *.pdb
-*.DS_Store
+.DS_Store

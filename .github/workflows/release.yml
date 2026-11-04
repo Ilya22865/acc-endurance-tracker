@@ -1,0 +1,91 @@
+name: Build and publish AccEndurance
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package ${{ matrix.channel }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            channel: win
+            main_exe: AccEndurance.Client.exe
+          - os: ubuntu-latest
+            rid: linux-x64
+            channel: linux
+            main_exe: AccEndurance.Client
+          - os: macos-latest
+            rid: osx-arm64
+            channel: osx
+            main_exe: AccEndurance.Client
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Velopack CLI
+        run: dotnet tool install --global vpk --version 1.2.161
+
+      - name: Set release version and updater repository
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          printf '{\n  "GitHubRepository": "https://github.com/%s"\n}\n' "$GITHUB_REPOSITORY" > src/AccEndurance.Client/update-source.json
+
+      - name: Publish self-contained client
+        run: >-
+          dotnet publish src/AccEndurance.Client/AccEndurance.Client.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          --self-contained true
+          -p:Version=${{ env.RELEASE_VERSION }}
+          --output ./publish
+
+      - name: Create installer and update feed
+        run: >-
+          vpk pack
+          --packId AccEndurance-${{ matrix.channel }}
+          --packVersion ${{ env.RELEASE_VERSION }}
+          --packDir ./publish
+          --mainExe ${{ matrix.main_exe }}
+          --channel ${{ matrix.channel }}
+          --packTitle AccEndurance
+          --outputDir ./releases
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.channel }}
+          path: releases/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: AccEndurance ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release-assets/*

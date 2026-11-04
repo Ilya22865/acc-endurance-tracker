@@ -30,13 +30,10 @@ public sealed class StintsController : ControllerBase
     [HttpPatch("{id}")]
     public IActionResult UpdateStint(int id, [FromBody] UpdateStintRequest request)
     {
-        var stint = _sessionState.Stints.LastOrDefault(s => s.Id == id);
-        if (stint == null) return NotFound();
-
-        if (request.Notes != null) stint.Notes = request.Notes;
-        if (request.PlannedFuelLiters.HasValue) stint.PlannedFuelLiters = request.PlannedFuelLiters;
-        if (request.PlannedLaps.HasValue) stint.PlannedLaps = request.PlannedLaps;
-        return Ok(stint);
+        // изменения применяются в памяти И сохраняются в БД
+        var stint = _sessionState.UpdateStintDetails(
+            id, request.Notes, request.PlannedFuelLiters, request.PlannedLaps);
+        return stint == null ? NotFound() : Ok(stint);
     }
 
     public sealed class UpdateStintRequest

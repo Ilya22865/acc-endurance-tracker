@@ -16,6 +16,7 @@ public sealed class BroadcastingProtocol : IDisposable
     private readonly string _commandPassword;
 
     private volatile bool _registered;
+    private DateTime _lastEntryListRequestUtc = DateTime.MinValue;
     private DateTime _lastMessageUtc = DateTime.UtcNow;
 
     public int ConnectionId { get; private set; }
@@ -42,6 +43,17 @@ public sealed class BroadcastingProtocol : IDisposable
         _msInterval = msRealtimeUpdateInterval;
         _client = new UdpClient();
         _client.Connect(ip, port);
+    }
+
+    private int _started;
+
+    /// <summary>
+    /// Запускает приём и регистрацию. Вызывать ПОСЛЕ подписки на события: раньше циклы стартовали
+    /// прямо в конструкторе, и первые ответы ACC (в т.ч. список машин) могли прийти до подписки и потеряться.
+    /// </summary>
+    public void Start()
+    {
+        if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _ = ListenerLoopAsync(_cts.Token);
         _ = RegistrationLoopAsync(_cts.Token);
     }
@@ -61,12 +73,22 @@ public sealed class BroadcastingProtocol : IDisposable
                 else if (DateTime.UtcNow - _lastMessageUtc > TimeSpan.FromSeconds(10))
                 {
                     // от игры давно ничего не шло — считаем связь потерянной
+                    // (и сообщаем об этом: раньше статус «подключено» оставался навсегда)
                     _registered = false;
+                    OnConnectionStateChanged?.Invoke("Lost: no messages for 10s");
                 }
             }
+            catch (OperationCanceledException) { break; }
             catch { }
 
-            await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
@@ -91,7 +113,9 @@ public sealed class BroadcastingProtocol : IDisposable
             }
             catch (SocketException ex)
             {
+                // UDP «connection reset» приходит, пока ACC не запущен; без паузы цикл крутится вхолостую
                 Console.Error.WriteLine($"Socket error: {ex.Message}");
+                try { await Task.Delay(500, ct); } catch (OperationCanceledException) { break; }
             }
             catch (Exception ex)
             {
@@ -227,6 +251,15 @@ public sealed class BroadcastingProtocol : IDisposable
                     LastLap = ReadLap(reader),
                     CurrentLap = ReadLap(reader),
                 };
+
+                // Как в официальном SDK: если машины нет в списке или число пилотов изменилось
+                // (пакеты UDP терялись / смена пилота), запрашиваем список заново (не чаще раза в секунду).
+                if ((!_entryList.TryGetValue(update.CarIndex, out var knownCar) || knownCar.Drivers.Count != update.DriverCount)
+                    && DateTime.UtcNow - _lastEntryListRequestUtc > TimeSpan.FromSeconds(1))
+                {
+                    _lastEntryListRequestUtc = DateTime.UtcNow;
+                    SendRequest(RequestType.EntryList);
+                }
 
                 OnRealtimeCarUpdate?.Invoke(update);
                 break;

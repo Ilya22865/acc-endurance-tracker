@@ -95,9 +95,29 @@ public sealed partial class MainViewModel : ObservableObject
         GoToPageCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(i => SelectedPageIndex = i);
     }
 
+    private bool _connecting;
+
     public async Task ConnectAsync()
     {
+        if (_connecting) return;
+        _connecting = true;
+        try
+        {
+            // Первое подключение не удалось (сервер ещё не запущен) — повторяем, а не остаёмся
+            // навсегда в состоянии «Ошибка».
+            while (!await TryConnectOnceAsync())
+                await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+        finally
+        {
+            _connecting = false;
+        }
+    }
+
+    private async Task<bool> TryConnectOnceAsync()
+    {
         ConnectionStatus = "Подключение…";
+        HubClient? hub = null;
         try
         {
             _api = new ApiClient(_baseUrl);
@@ -105,30 +125,46 @@ public sealed partial class MainViewModel : ObservableObject
             if (initial == null)
             {
                 ConnectionStatus = "Нет ответа от сервера";
-                return;
+                return false;
             }
 
-            _hub = new HubClient(_baseUrl);
-            _hub.OnSnapshot(snapshot => Dispatcher.UIThread.Post(() => ApplySnapshot(snapshot)));
-            _hub.OnOutlineRecorded(points => Dispatcher.UIThread.Post(() => ApplyRecordedOutline(points)));
-            var hub = _hub;
-            try
+            // Старое соединение закрываем: иначе при повторном подключении обработчики дублировались
+            // и соединение утекало.
+            var old = _hub;
+            _hub = null;
+            if (old != null)
             {
-                await hub.ConnectAsync();
-            }
-            catch (Exception)
-            {
-                ConnectionStatus = "REST OK, SignalR не подключён";
+                try { await old.DisposeAsync(); } catch { }
             }
 
+            hub = new HubClient(_baseUrl);
+            hub.OnSnapshot(snapshot => Dispatcher.UIThread.Post(() => ApplySnapshot(snapshot)));
+            hub.OnOutlineRecorded(points => Dispatcher.UIThread.Post(() => ApplyRecordedOutline(points)));
+            hub.ConnectionChanged += (ok, text) => Dispatcher.UIThread.Post(() =>
+            {
+                IsConnected = ok;
+                ConnectionStatus = text;
+            });
+            await hub.ConnectAsync();
+
+            // «Подключено» выставляем только если SignalR реально поднялся
+            // (раньше статус перезаписывался на «Подключено» даже после ошибки SignalR).
+            _hub = hub;
             IsConnected = true;
             ConnectionStatus = "Подключено";
             ApplySnapshot(initial);
             _ = LoadSetupsAsync();
+            return true;
         }
         catch (Exception ex)
         {
+            if (hub != null)
+            {
+                try { await hub.DisposeAsync(); } catch { }
+            }
+            IsConnected = false;
             ConnectionStatus = $"Ошибка: {ex.Message}";
+            return false;
         }
     }
 
@@ -570,20 +606,32 @@ public sealed partial class MainViewModel : ObservableObject
         if (section.Items.Count > 0) sections.Add(section);
     }
 
-    private static string? GetValue(JsonObject o, string key)
-        => o.TryGetPropertyValue(key, out var n) && n != null ? n.GetValue<decimal>().ToString("0.####") : null;
-
-    private static string? GetArray(JsonObject o, string key)
+    private static string? FormatNode(JsonNode? n)
     {
-        var a = o[key] as JsonArray;
-        if (a == null) return null;
+        if (n is not JsonValue v) return null;
+        if (v.TryGetValue<decimal>(out var d)) return d.ToString("0.####");
+        if (v.TryGetValue<double>(out var dd)) return dd.ToString("0.####");
+        if (v.TryGetValue<string>(out var str)) return str;
+        if (v.TryGetValue<bool>(out var b)) return b ? "да" : "нет";
+        return v.ToString();
+    }
+
+    // Раньше: параметр был не nullable, а секции basicSetup/advancedSetup могли отсутствовать →
+    // NullReferenceException, и весь сетап показывался как «Не удалось разобрать».
+    // GetValue<decimal>() также падал на нечисловых значениях.
+    private static string? GetValue(JsonObject? o, string key)
+        => o != null && o.TryGetPropertyValue(key, out var n) ? FormatNode(n) : null;
+
+    private static string? GetArray(JsonObject? o, string key)
+    {
+        if (o?[key] is not JsonArray a) return null;
         var items = new List<string>();
         foreach (var n in a)
         {
-            if (n is JsonObject item && item.TryGetPropertyValue("value", out var v) && v != null)
-                items.Add(v.GetValue<decimal>().ToString("0.####"));
-            else if (n is JsonValue v2)
-                items.Add(v2.GetValue<decimal>().ToString("0.####"));
+            var text = n is JsonObject item && item.TryGetPropertyValue("value", out var inner)
+                ? FormatNode(inner)
+                : FormatNode(n);
+            if (text != null) items.Add(text);
         }
         return items.Count > 0 ? string.Join(" | ", items) : null;
     }
@@ -607,9 +655,17 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task SaveStintAsync()
     {
         if (_api == null || SelectedStint == null) return;
-        var ok = await _api.PatchStintAsync(
-            SelectedStint.StintId, EditNotes, EditFuel, EditLaps);
-        ConnectionStatus = ok ? "Стинт обновлён" : "Не удалось обновить стинт";
+        try
+        {
+            var ok = await _api.PatchStintAsync(
+                SelectedStint.StintId, EditNotes, EditFuel, EditLaps);
+            ConnectionStatus = ok ? "Стинт обновлён" : "Не удалось обновить стинт";
+        }
+        catch (Exception ex)
+        {
+            // сетевая ошибка раньше уходила необработанной из команды
+            ConnectionStatus = "Не удалось обновить стинт: " + ex.Message;
+        }
     }
 
     partial void OnSelectedStintChanged(StintRow? value)

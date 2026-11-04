@@ -70,6 +70,8 @@ protocol.OnTrackDataUpdate += track =>
     Console.WriteLine($"[TRACK] {track.TrackName} (id={track.TrackId}, {track.TrackMeters}m)");
 };
 
+protocol.Start();
+
 try
 {
     await Task.Delay(Timeout.Infinite, cts.Token);

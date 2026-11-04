@@ -26,6 +26,35 @@ public sealed class SetupsController : ControllerBase
             "Setups");
     }
 
+    /// <summary>
+    /// Собирает путь внутри папки сетапов и гарантирует, что он из неё не выходит.
+    /// Раньше car/track/file подставлялись в Path.Combine как есть: "..", абсолютный путь или
+    /// "%5C" позволяли прочитать ЛЮБОЙ файл на сервере (а он слушает 0.0.0.0).
+    /// </summary>
+    private bool TryResolveInside(out string result, params string[] parts)
+    {
+        result = "";
+        var basePath = Path.GetFullPath(ResolveBasePath());
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrWhiteSpace(part)
+                || part == "." || part == ".."
+                || part.IndexOfAny(new[] { '/', '\\', ':' }) >= 0
+                || part.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                return false;
+        }
+
+        var full = Path.GetFullPath(Path.Combine(new[] { basePath }.Concat(parts).ToArray()));
+        var prefix = basePath.EndsWith(Path.DirectorySeparatorChar)
+            ? basePath
+            : basePath + Path.DirectorySeparatorChar;
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        result = full;
+        return true;
+    }
+
     [HttpGet("base-path")]
     public IActionResult GetBasePath()
     {
@@ -57,8 +86,7 @@ public sealed class SetupsController : ControllerBase
     [HttpGet("{car}")]
     public IActionResult ListTracks(string car)
     {
-        var basePath = ResolveBasePath();
-        var carPath = Path.Combine(basePath, car);
+        if (!TryResolveInside(out var carPath, car)) return BadRequest("invalid path");
         if (!Directory.Exists(carPath)) return NotFound();
 
         var tracks = Directory.GetDirectories(carPath)
@@ -75,8 +103,8 @@ public sealed class SetupsController : ControllerBase
     [HttpGet("{car}/{track}/{file}")]
     public IActionResult GetSetup(string car, string track, string file)
     {
-        var basePath = ResolveBasePath();
-        var filePath = Path.Combine(basePath, car, track, file);
+        if (!file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) return BadRequest("only .json setups");
+        if (!TryResolveInside(out var filePath, car, track, file)) return BadRequest("invalid path");
         if (!System.IO.File.Exists(filePath)) return NotFound();
 
         var json = System.IO.File.ReadAllText(filePath);
@@ -86,8 +114,7 @@ public sealed class SetupsController : ControllerBase
     [HttpGet("browse/{car}/{track}")]
     public IActionResult BrowseSetups(string car, string track)
     {
-        var basePath = ResolveBasePath();
-        var trackPath = Path.Combine(basePath, car, track);
+        if (!TryResolveInside(out var trackPath, car, track)) return BadRequest("invalid path");
         if (!Directory.Exists(trackPath)) return Ok(new List<object>());
 
         var files = Directory.GetFiles(trackPath, "*.json")

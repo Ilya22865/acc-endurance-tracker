@@ -9,7 +9,6 @@ public sealed class AccBroadcastService : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly SessionStateService _sessionState;
     private BroadcastingProtocol? _protocol;
-    private readonly int _ourCarRaceNumber;
 
     public AccBroadcastService(
         ILogger<AccBroadcastService> logger,
@@ -20,7 +19,6 @@ public sealed class AccBroadcastService : BackgroundService
         _configuration = configuration;
         _sessionState = sessionState;
 
-        _ourCarRaceNumber = _configuration.GetValue<int?>("Acc:OurCarRaceNumber") ?? -1;
     }
 
     public bool IsConnected { get; private set; }
@@ -93,6 +91,9 @@ public sealed class AccBroadcastService : BackgroundService
         {
             _logger.LogInformation("Event: {Type} — {Msg}", evt.Type, evt.Msg);
         };
+
+        // события подключены — теперь можно начинать приём
+        _protocol.Start();
 
         try
         {

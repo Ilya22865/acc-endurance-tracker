@@ -33,14 +33,14 @@ public sealed class ApiClient
         => await _http.GetFromJsonAsync<List<SetupCarDto>>($"{_baseUrl}/api/setups", ct) ?? new();
 
     public async Task<List<SetupTrackDto>> GetSetupTracksAsync(string car, CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<List<SetupTrackDto>>($"{_baseUrl}/api/setups/{car}", ct) ?? new();
+        => await _http.GetFromJsonAsync<List<SetupTrackDto>>($"{_baseUrl}/api/setups/{Uri.EscapeDataString(car)}", ct) ?? new();
 
     public async Task<List<SetupFileDto>> GetSetupFilesAsync(string car, string track, CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<List<SetupFileDto>>($"{_baseUrl}/api/setups/browse/{car}/{track}", ct) ?? new();
+        => await _http.GetFromJsonAsync<List<SetupFileDto>>($"{_baseUrl}/api/setups/browse/{Uri.EscapeDataString(car)}/{Uri.EscapeDataString(track)}", ct) ?? new();
 
     public async Task<string?> GetSetupAsync(string car, string track, string file, CancellationToken ct = default)
     {
-        var resp = await _http.GetAsync($"{_baseUrl}/api/setups/{car}/{track}/{file}", ct);
+        var resp = await _http.GetAsync($"{_baseUrl}/api/setups/{Uri.EscapeDataString(car)}/{Uri.EscapeDataString(track)}/{Uri.EscapeDataString(file)}", ct);
         return resp.IsSuccessStatusCode ? await resp.Content.ReadAsStringAsync(ct) : null;
     }
 

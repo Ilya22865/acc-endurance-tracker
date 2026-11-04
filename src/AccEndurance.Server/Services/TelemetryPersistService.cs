@@ -49,31 +49,47 @@ public sealed class TelemetryPersistService : BackgroundService
         var pending = _sessionState.DrainPendingTelemetry();
         if (pending.Count == 0) return;
 
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var stint = await db.Stints
-            .OrderByDescending(s => s.StartedAt)
-            .FirstOrDefaultAsync(s => s.EndedAt == null, ct);
-
-        var driver = !string.IsNullOrEmpty(_sessionState.ActiveDriverName)
-            ? await db.Drivers.FirstOrDefaultAsync(
-                d => d.ShortName == _sessionState.ActiveDriverName, ct)
-            : null;
-
-        int? driverId = driver?.Id;
-        int? stintId = stint?.Id;
-
-        db.TelemetrySamples.AddRange(pending.Select(p => new TelemetrySample
+        try
         {
-            DriverId = driverId,
-            StintId = stintId,
-            Timestamp = p.Timestamp,
-            Gas = p.Gas,
-            Brake = p.Brake,
-            SteerAngle = p.SteerAngle,
-        }));
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-        await db.SaveChangesAsync(ct);
-        _logger.LogDebug("Persisted {Count} telemetry samples", pending.Count);
+            // запасной вариант для сэмплов, пришедших до того, как стинт получил Id
+            var openStintId = await db.Stints
+                .Where(s => s.EndedAt == null)
+                .OrderByDescending(s => s.StartedAt)
+                .Select(s => (int?)s.Id)
+                .FirstOrDefaultAsync(ct);
+
+            // Пилот и стинт берутся из самого сэмпла (на момент приёма). Раньше использовались
+            // «текущий пилот/стинт» на момент записи в БД, и сэмплы последней секунды старого стинта
+            // записывались на нового пилота.
+            var names = pending.Select(p => p.DriverId).Distinct().ToList();
+            var driverRows = await db.Drivers
+                .Where(d => names.Contains(d.ShortName))
+                .Select(d => new { d.ShortName, d.Id })
+                .ToListAsync(ct);
+            var driverIds = driverRows
+                .GroupBy(d => d.ShortName)
+                .ToDictionary(g => g.Key, g => g.First().Id);
+
+            db.TelemetrySamples.AddRange(pending.Select(p => new TelemetrySample
+            {
+                DriverId = driverIds.TryGetValue(p.DriverId, out var did) ? did : (int?)null,
+                StintId = p.StintId != 0 ? p.StintId : openStintId,
+                Timestamp = p.Timestamp,
+                Gas = p.Gas,
+                Brake = p.Brake,
+                SteerAngle = p.SteerAngle,
+            }));
+
+            await db.SaveChangesAsync(ct);
+            _logger.LogDebug("Persisted {Count} telemetry samples", pending.Count);
+        }
+        catch
+        {
+            // не теряем уже вычитанную из очереди телеметрию, если БД временно недоступна
+            _sessionState.RequeueTelemetry(pending);
+            throw;
+        }
     }
 }

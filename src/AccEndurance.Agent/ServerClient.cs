@@ -29,8 +29,21 @@ public sealed class ServerClient : IDisposable
             DriverIndex = driverIndex,
             DriverName = driverName,
         };
-        var response = await _http.PostAsJsonAsync($"{_baseUrl}/api/telemetry/register", payload, ct);
-        return response.IsSuccessStatusCode;
+        try
+        {
+            using var response = await _http.PostAsJsonAsync($"{_baseUrl}/api/telemetry/register", payload, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"[warn] Регистрация не удалась: {ex.Message}");
+            return false;
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            Console.WriteLine("[warn] Регистрация: таймаут ответа сервера");
+            return false;
+        }
     }
 
     public async Task SendBatchAsync(IReadOnlyList<TelemetryReading> readings, string driverId, CancellationToken ct = default)

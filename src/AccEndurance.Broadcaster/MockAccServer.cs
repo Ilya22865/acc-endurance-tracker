@@ -201,7 +201,7 @@ public sealed class MockAccServer : IDisposable
         w.Write((ushort)0);
         w.Write((ushort)0);
         w.Write((byte)SessionType.Race);
-        w.Write((byte)SessionPhase.RealtimeSession);
+        w.Write((byte)SessionPhase.Session);
         w.Write(1_000_000f);
         w.Write(10_000_000f);
         w.Write(-1);

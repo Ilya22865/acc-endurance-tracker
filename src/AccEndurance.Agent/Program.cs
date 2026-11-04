@@ -21,18 +21,22 @@ Console.CancelKeyPress += (_, e) =>
 
 using var client = new ServerClient(options.ServerUrl, options.AgentId);
 
-if (options.DriverIndex < 0)
-{
-    driverIndex = options.DriverIndex;
-}
-else
-{
-    driverIndex = options.DriverIndex;
-}
+driverIndex = options.DriverIndex;
 
 if (driverIndex < 0)
 {
-    var teamDrivers = await client.GetTeamDriversAsync(cts.Token);
+    List<ServerClient.TeamDriverDto> teamDrivers;
+    try
+    {
+        teamDrivers = await client.GetTeamDriversAsync(cts.Token);
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+    {
+        Console.WriteLine($"Не удалось получить список пилотов с {options.ServerUrl}: {ex.Message}");
+        Console.WriteLine("Проверьте, что сервер запущен, или укажите --driver-index N.");
+        return;
+    }
+
     if (teamDrivers.Count == 0)
     {
         Console.WriteLine("Нет списка пилотов (нет данных о команде). Укажите --driver-index N.");
@@ -66,22 +70,39 @@ Console.WriteLine(registered ? "OK" : "FAILED");
 
 Console.WriteLine("Агент работает. Ctrl+C для выхода.\n");
 
-while (!cts.IsCancellationRequested)
+var lastRegister = DateTime.UtcNow;
+
+try
 {
-    if (source.TryReadSample(out var sample))
+    while (!cts.IsCancellationRequested)
     {
-        batch.Add(sample);
-        samplesSent++;
-    }
+        if (source.TryReadSample(out var sample))
+        {
+            batch.Add(sample);
+            samplesSent++;
+        }
 
-    if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
-    {
-        await client.SendBatchAsync(batch, options.AgentId, cts.Token);
-        batch.Clear();
-        lastFlush = DateTime.UtcNow;
-    }
+        // Регистрация хранится на сервере в памяти и пропадает при его перезапуске
+        // (после этого батчи молча отбрасывались). Повторяем её периодически — запрос идемпотентный.
+        if (DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(30))
+        {
+            lastRegister = DateTime.UtcNow;
+            await client.RegisterAsync(driverIndex, driverName, cts.Token);
+        }
 
-    await Task.Delay(options.ReadIntervalMs, cts.Token);
+        if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
+        {
+            await client.SendBatchAsync(batch, options.AgentId, cts.Token);
+            batch.Clear();
+            lastFlush = DateTime.UtcNow;
+        }
+
+        await Task.Delay(options.ReadIntervalMs, cts.Token);
+    }
+}
+catch (OperationCanceledException)
+{
+    // Ctrl+C — штатный выход (раньше TaskCanceledException из Task.Delay вылетала необработанной)
 }
 
 Console.WriteLine($"Отправлено сэмплов: {samplesSent}");

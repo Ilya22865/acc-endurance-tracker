@@ -27,6 +27,8 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
     {
         try
         {
+            _view?.Dispose();
+            _physics?.Dispose();
             _physics = MemoryMappedFile.OpenExisting(@"Local\acpmf_physics");
             _view = _physics.CreateViewAccessor();
         }
@@ -43,8 +45,10 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
         var view = _view;
         if (view == null)
         {
+            // ACC ещё не запущен (или перезапущен): пробуем подключиться заново.
+            // Раньше после успешного AttachPhysics строка «if (view == null) _view = null»
+            // тут же сбрасывала свежесозданный доступ, и агент, запущенный до игры, никогда не читал данные.
             AttachPhysics();
-            if (view == null) _view = null;
             view = _view;
             if (view == null) return false;
         }
@@ -63,8 +67,13 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
                     view.ReadSingle(SteerAngleOffset));
                 return true;
             }
-            catch (AccessViolationException)
+            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException)
             {
+                // отображение устарело (ACC закрыт) — отпустим и подключимся заново при следующем чтении
+                _view?.Dispose();
+                _physics?.Dispose();
+                _view = null;
+                _physics = null;
                 return false;
             }
         }

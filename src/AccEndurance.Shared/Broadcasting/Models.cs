@@ -19,56 +19,52 @@ public enum InboundMessageTypes : byte
     BroadcastingEvent = 7,
 }
 
+// Значения enum-ов должны совпадать с официальным ACC Broadcasting SDK (protocol v4),
+// иначе приведение (byte) -> enum даёт неверные значения.
 public enum SessionPhase : byte
 {
     None = 0,
-    Starting,
-    PreFormation,
-    FormationLap,
-    RealtimeSession,
-    SessionEnded,
-    SessionAbandoned,
+    Starting = 1,
+    PreFormation = 2,
+    FormationLap = 3,
+    PreSession = 4,
+    Session = 5,
+    SessionOver = 6,
+    PostSession = 7,
+    ResultUI = 8,
 }
 
 public enum SessionType : byte
 {
     Practice = 0,
-    Qualifying,
-    Race,
-    Hotlap,
-    TimeAttack,
-    Drift,
-    Drag,
-    Hotstint,
-    HotlapSuperpole,
-    Replay,
+    Qualifying = 4,
+    Superpole = 9,
+    Race = 10,
+    Hotlap = 11,
+    Hotstint = 12,
+    HotlapSuperpole = 13,
+    Replay = 14,
 }
 
 public enum CarLocation : byte
 {
-    Track = 0,
-    Pitlane,
-    PitEntry,
-    PitExit,
+    None = 0,
+    Track = 1,
+    Pitlane = 2,
+    PitEntry = 3,
+    PitExit = 4,
 }
 
 public enum BroadcastingCarEvent : byte
 {
-    GreenFlag,
-    SessionOver,
-    PenaltyCommMsg,
-    Accident,
-    Lapped,
-    LastLap,
-    BlueFlag,
-    Retired,
-    FlagBlack,
-    FlagBlue,
-    FlagWhite,
-    FlagCheckered,
-    FlagYellow,
-    FlagGreen,
-    Max,
+    None = 0,
+    GreenFlag = 1,
+    SessionOver = 2,
+    PenaltyCommMsg = 3,
+    Accident = 4,
+    LapCompleted = 5,
+    BestSessionLap = 6,
+    BestPersonalLap = 7,
 }
 
 public sealed class LapInfo
