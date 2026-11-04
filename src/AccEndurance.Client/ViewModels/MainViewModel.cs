@@ -29,6 +29,8 @@ public sealed partial class MainViewModel : ObservableObject
         new NavItem { Code = "S", Title = "Стинты", Accent = SolidColorBrush.Parse("#4FC3F7") },
         new NavItem { Code = "A", Title = "Сетап", Accent = SolidColorBrush.Parse("#FFB74D") },
         new NavItem { Code = "M", Title = "Карта", Accent = SolidColorBrush.Parse("#E84855") },
+        new NavItem { Code = "SV", Title = "Сервер", Accent = SolidColorBrush.Parse("#BA68C8") },
+        new NavItem { Code = "AG", Title = "Агент", Accent = SolidColorBrush.Parse("#F06292") },
     };
     public ObservableCollection<string> SetupCars { get; } = new();
     public ObservableCollection<string> SetupTracks { get; } = new();
@@ -54,6 +56,8 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isPage1;
     [ObservableProperty] private bool _isPage2;
     [ObservableProperty] private bool _isPage3;
+    [ObservableProperty] private bool _isPage4;
+    [ObservableProperty] private bool _isPage5;
     [ObservableProperty] private string _setupJson = "";
     [ObservableProperty] private string _setupStatus = "";
 
@@ -63,6 +67,23 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _weatherRain = "";
     [ObservableProperty] private string _weatherClouds = "";
     [ObservableProperty] private string _weatherWetness = "";
+
+    // Server & Agent
+    [ObservableProperty] private bool _isServerRunning;
+    [ObservableProperty] private bool _isAgentRunning;
+    [ObservableProperty] private string _serverStatus = "Остановлен";
+    [ObservableProperty] private string _agentStatus = "Остановлен";
+    [ObservableProperty] private string _serverLogs = "";
+    [ObservableProperty] private string _agentLogs = "";
+    [ObservableProperty] private int _selectedDriverIndex;
+    [ObservableProperty] private string _serverExePath = "";
+    [ObservableProperty] private string _agentExePath = "";
+
+    public ObservableCollection<string> ServerLogLines { get; } = new();
+    public ObservableCollection<string> AgentLogLines { get; } = new();
+
+    private readonly Services.EmbeddedServerService? _embeddedServer;
+    private readonly Services.EmbeddedAgentService? _embeddedAgent;
 
     public event Action? MapUpdated;
     private List<(double X, double Y)> _lastOutline = new();
@@ -82,6 +103,10 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand ShowSetupCommand { get; }
     public ICommand OpenSetupFolderCommand { get; }
     public ICommand GoToPageCommand { get; }
+    public ICommand StartServerCommand { get; }
+    public ICommand StopServerCommand { get; }
+    public ICommand StartAgentCommand { get; }
+    public ICommand StopAgentCommand { get; }
 
     public MainViewModel(string baseUrl)
     {
@@ -93,6 +118,112 @@ public sealed partial class MainViewModel : ObservableObject
         ShowSetupCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ShowSetupAsync);
         OpenSetupFolderCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(OpenSetupFolderAsync);
         GoToPageCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(i => SelectedPageIndex = i);
+        StartServerCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StartServerAsync);
+        StopServerCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StopServerAsync);
+        StartAgentCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StartAgentAsync);
+        StopAgentCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StopAgentAsync);
+
+        // Попытка найти Server и Agent рядом с клиентом
+        TryLocateServerAndAgent();
+
+        try
+        {
+            var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => { });
+            _embeddedServer = new Services.EmbeddedServerService(
+                loggerFactory.CreateLogger(typeof(Services.EmbeddedServerService).FullName ?? "EmbeddedServer"));
+            _embeddedServer.OnLogLine += line =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    ServerLogLines.Add(line);
+                    if (ServerLogLines.Count > 500) ServerLogLines.RemoveAt(0);
+                    ServerLogs = string.Join("\n", ServerLogLines);
+                });
+            };
+            _embeddedServer.OnStateChanged += running =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    IsServerRunning = running;
+                    ServerStatus = running ? "Запущен" : "Остановлен";
+                });
+            };
+
+            _embeddedAgent = new Services.EmbeddedAgentService(
+                loggerFactory.CreateLogger(typeof(Services.EmbeddedAgentService).FullName ?? "EmbeddedAgent"));
+            _embeddedAgent.OnLogLine += line =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    AgentLogLines.Add(line);
+                    if (AgentLogLines.Count > 500) AgentLogLines.RemoveAt(0);
+                    AgentLogs = string.Join("\n", AgentLogLines);
+                });
+            };
+            _embeddedAgent.OnStateChanged += running =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    IsAgentRunning = running;
+                    AgentStatus = running ? "Запущен" : "Остановлен";
+                });
+            };
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write($"Failed to init embedded services: {ex}");
+        }
+    }
+
+    private void TryLocateServerAndAgent()
+    {
+        var appDir = AppContext.BaseDirectory;
+        var serverCandidates = new[]
+        {
+            Path.Combine(appDir, "Server", "AccEndurance.Server.exe"),
+            Path.Combine(Path.GetDirectoryName(appDir) ?? "", "Server", "AccEndurance.Server.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "ACC-Endurance-win-x64", "Server", "AccEndurance.Server.exe"),
+        };
+
+        var agentCandidates = new[]
+        {
+            Path.Combine(appDir, "Agent", "AccEndurance.Agent.exe"),
+            Path.Combine(Path.GetDirectoryName(appDir) ?? "", "Agent", "AccEndurance.Agent.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "ACC-Endurance-win-x64", "Agent", "AccEndurance.Agent.exe"),
+        };
+
+        ServerExePath = serverCandidates.FirstOrDefault(File.Exists) ?? "";
+        AgentExePath = agentCandidates.FirstOrDefault(File.Exists) ?? "";
+    }
+
+    private async Task StartServerAsync()
+    {
+        if (string.IsNullOrEmpty(ServerExePath))
+        {
+            ServerLogLines.Add("❌ Путь к AccEndurance.Server.exe не указан");
+            return;
+        }
+        await (_embeddedServer?.StartAsync(ServerExePath) ?? Task.CompletedTask);
+    }
+
+    private async Task StopServerAsync()
+    {
+        await (_embeddedServer?.StopAsync() ?? Task.CompletedTask);
+    }
+
+    private async Task StartAgentAsync()
+    {
+        if (string.IsNullOrEmpty(AgentExePath))
+        {
+            AgentLogLines.Add("❌ Путь к AccEndurance.Agent.exe не указан");
+            return;
+        }
+        await (_embeddedAgent?.StartAsync(AgentExePath, ServerUrl, SelectedDriverIndex) ?? Task.CompletedTask);
+    }
+
+    private async Task StopAgentAsync()
+    {
+        await (_embeddedAgent?.StopAsync() ?? Task.CompletedTask);
     }
 
     private bool _connecting;
@@ -681,6 +812,8 @@ public sealed partial class MainViewModel : ObservableObject
         IsPage1 = value == 1;
         IsPage2 = value == 2;
         IsPage3 = value == 3;
+        IsPage4 = value == 4;
+        IsPage5 = value == 5;
     }
 
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";

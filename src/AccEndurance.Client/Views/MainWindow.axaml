@@ -357,6 +357,62 @@
           </Grid>
         </Panel>
 
+        <!-- PAGE 4 — СЕРВЕР -->
+        <Panel IsVisible="{Binding IsPage4}" Margin="12">
+          <Grid RowDefinitions="Auto,*">
+            <Border Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1" CornerRadius="8,8,0,0" Padding="14,12">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="🖥️ Сервер" Classes="h1" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding ServerStatus}" FontSize="13" FontWeight="SemiBold"
+                             Foreground="{Binding IsServerRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2EBD93;#8A93A5}"
+                             VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </StackPanel>
+                <TextBox Grid.Column="1" PlaceholderText="Путь к AccEndurance.Server.exe" Text="{Binding ServerExePath}" Margin="16,0"/>
+                <Button Grid.Column="3" Content="▶ Запустить" Command="{Binding StartServerCommand}"
+                        Classes="accent" IsEnabled="{Binding !IsServerRunning}" Margin="0,0,8,0"/>
+                <Button Grid.Column="4" Content="⏹ Остановить" Command="{Binding StopServerCommand}"
+                        Classes="subtle" IsEnabled="{Binding IsServerRunning}"/>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" Padding="12">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding ServerLogs}" FontFamily="Cascadia Code, Consolas, monospace" FontSize="12"
+                           Foreground="#C9D2DF" TextWrapping="Wrap" Background="#14171C" Padding="10"/>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Panel>
+
+        <!-- PAGE 5 — АГЕНТ -->
+        <Panel IsVisible="{Binding IsPage5}" Margin="12">
+          <Grid RowDefinitions="Auto,*">
+            <Border Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1" CornerRadius="8,8,0,0" Padding="14,12">
+              <Grid ColumnDefinitions="Auto,200,Auto,80,*,Auto,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="🎮 Агент телеметрии" Classes="h1" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding AgentStatus}" FontSize="13" FontWeight="SemiBold"
+                             Foreground="{Binding IsAgentRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2EBD93;#8A93A5}"
+                             VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </StackPanel>
+                <TextBox Grid.Column="1" PlaceholderText="Путь к Agent.exe" Text="{Binding AgentExePath}" Margin="16,0,0,0"/>
+                <TextBlock Grid.Column="2" Text="DriverIndex" Foreground="#C9D2DF" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                <TextBox Grid.Column="3" Text="{Binding SelectedDriverIndex}" Width="60"/>
+                <Button Grid.Column="5" Content="▶ Запустить" Command="{Binding StartAgentCommand}"
+                        Classes="accent" IsEnabled="{Binding !IsAgentRunning}" Margin="0,0,8,0"/>
+                <Button Grid.Column="6" Content="⏹ Остановить" Command="{Binding StopAgentCommand}"
+                        Classes="subtle" IsEnabled="{Binding IsAgentRunning}"/>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" Padding="12">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding AgentLogs}" FontFamily="Cascadia Code, Consolas, monospace" FontSize="12"
+                           Foreground="#C9D2DF" TextWrapping="Wrap" Background="#14171C" Padding="10"/>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Panel>
+
         </Panel>
       </Border>
     </Grid>
