@@ -13,6 +13,7 @@ namespace AccEndurance.Client.Views;
 public partial class MainWindow : Window
 {
     private Canvas? _mapCanvas;
+    private Canvas? _radarCanvas;
 
     public MainWindow()
     {
@@ -27,6 +28,20 @@ public partial class MainWindow : Window
             {
                 if (DataContext is ViewModels.MainViewModel vm)
                     vm.MapUpdated += () => Dispatcher.UIThread.Post(RenderMap);
+            };
+        }
+
+        _radarCanvas = this.FindControl<Canvas>("RadarCanvas");
+        if (_radarCanvas != null)
+        {
+            DataContextChanged += (_, _) =>
+            {
+                if (DataContext is ViewModels.MainViewModel vm)
+                {
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+                    timer.Tick += (_, _) => RenderRadar(vm);
+                    timer.Start();
+                }
             };
         }
     }
@@ -122,5 +137,138 @@ public partial class MainWindow : Window
             Canvas.SetTop(label, p.Y - 7);
             _mapCanvas.Children.Add(label);
         }
+    }
+
+    private void RenderRadar(ViewModels.MainViewModel vm)
+    {
+        if (_radarCanvas == null) return;
+
+        var w = _radarCanvas.Bounds.Width;
+        var h = _radarCanvas.Bounds.Height;
+        if (w <= 0 || h <= 0) return;
+
+        _radarCanvas.Children.Clear();
+
+        var centerX = w / 2;
+        var centerY = h / 2;
+        const double RadarRadius = 150;
+        const double RadarRange = 100; // meters
+
+        // Draw radar circles
+        for (int i = 1; i <= 3; i++)
+        {
+            var radius = RadarRadius * i / 3;
+            var circle = new Ellipse
+            {
+                Width = radius * 2,
+                Height = radius * 2,
+                Stroke = new SolidColorBrush(Color.Parse("#1F2229")),
+                StrokeThickness = 1,
+            };
+            Canvas.SetLeft(circle, centerX - radius);
+            Canvas.SetTop(circle, centerY - radius);
+            _radarCanvas.Children.Add(circle);
+        }
+
+        // Draw center lines
+        var lineColor = new SolidColorBrush(Color.Parse("#2D3139"));
+        var vLine = new Line
+        {
+            StartPoint = new Point(centerX, centerY - RadarRadius),
+            EndPoint = new Point(centerX, centerY + RadarRadius),
+            Stroke = lineColor,
+            StrokeThickness = 1,
+        };
+        _radarCanvas.Children.Add(vLine);
+
+        var hLine = new Line
+        {
+            StartPoint = new Point(centerX - RadarRadius, centerY),
+            EndPoint = new Point(centerX + RadarRadius, centerY),
+            Stroke = lineColor,
+            StrokeThickness = 1,
+        };
+        _radarCanvas.Children.Add(hLine);
+
+        // Get our car
+        var ourCar = vm.Standings.FirstOrDefault(c => c.RaceNumber == vm.OurCarNumber);
+        if (ourCar == null) return;
+
+        var ourCarIndex = vm.Standings.IndexOf(ourCar);
+        if (ourCarIndex == -1) return;
+
+        // Draw other cars relative to our position
+        foreach (var car in vm.Standings)
+        {
+            if (car.RaceNumber == vm.OurCarNumber) continue;
+
+            var carIndex = vm.Standings.IndexOf(car);
+            var relativePosition = carIndex - ourCarIndex;
+
+            // Calculate position on radar (simplified - ahead/behind)
+            var distance = Math.Abs(relativePosition) * 20.0; // Approximate distance
+            if (distance > RadarRange) continue;
+
+            var angle = relativePosition > 0 ? Math.PI / 2 : -Math.PI / 2; // Ahead = up, Behind = down
+            var scale = distance / RadarRange;
+            var x = centerX + Math.Sin(angle) * scale * RadarRadius;
+            var y = centerY - Math.Cos(angle) * scale * RadarRadius;
+
+            // Draw car dot
+            var carDot = new Ellipse
+            {
+                Width = 8,
+                Height = 8,
+                Fill = new SolidColorBrush(Color.Parse("#70757A")),
+            };
+            Canvas.SetLeft(carDot, x - 4);
+            Canvas.SetTop(carDot, y - 4);
+            _radarCanvas.Children.Add(carDot);
+
+            // Draw car number
+            var carLabel = new TextBlock
+            {
+                Text = car.RaceNumber.ToString(),
+                FontSize = 10,
+                Foreground = Brushes.White,
+            };
+            Canvas.SetLeft(carLabel, x - 8);
+            Canvas.SetTop(carLabel, y - 18);
+            _radarCanvas.Children.Add(carLabel);
+        }
+
+        // Draw our car in center
+        var ourCarDot = new Ellipse
+        {
+            Width = 12,
+            Height = 12,
+            Fill = new SolidColorBrush(Color.Parse("#2962FF")),
+        };
+        Canvas.SetLeft(ourCarDot, centerX - 6);
+        Canvas.SetTop(ourCarDot, centerY - 6);
+        _radarCanvas.Children.Add(ourCarDot);
+
+        // Draw our car number
+        var ourCarLabel = new TextBlock
+        {
+            Text = vm.OurCarNumber.ToString(),
+            FontSize = 11,
+            FontWeight = FontWeight.Bold,
+            Foreground = Brushes.White,
+        };
+        Canvas.SetLeft(ourCarLabel, centerX - 10);
+        Canvas.SetTop(ourCarLabel, centerY - 22);
+        _radarCanvas.Children.Add(ourCarLabel);
+
+        // Draw range label
+        var rangeLabel = new TextBlock
+        {
+            Text = $"{RadarRange:F0}m",
+            FontSize = 9,
+            Foreground = new SolidColorBrush(Color.Parse("#70757A")),
+        };
+        Canvas.SetLeft(rangeLabel, centerX - 15);
+        Canvas.SetTop(rangeLabel, 5);
+        _radarCanvas.Children.Add(rangeLabel);
     }
 }

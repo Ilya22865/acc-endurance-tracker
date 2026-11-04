@@ -27,6 +27,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         new NavItem { Code = "P", Title = "Позиции", Accent = SolidColorBrush.Parse("#2EBD93") },
         new NavItem { Code = "S", Title = "Стинты", Accent = SolidColorBrush.Parse("#4FC3F7") },
+        new NavItem { Code = "T", Title = "Сравнение", Accent = SolidColorBrush.Parse("#2962FF") },
+        new NavItem { Code = "R", Title = "Радар", Accent = SolidColorBrush.Parse("#FF6B6B") },
         new NavItem { Code = "A", Title = "Сетап", Accent = SolidColorBrush.Parse("#FFB74D") },
         new NavItem { Code = "M", Title = "Карта", Accent = SolidColorBrush.Parse("#E84855") },
         new NavItem { Code = "SV", Title = "Сервер", Accent = SolidColorBrush.Parse("#BA68C8") },
@@ -60,6 +62,8 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isPage4;
     [ObservableProperty] private bool _isPage5;
     [ObservableProperty] private bool _isPage6;
+    [ObservableProperty] private bool _isPage7;
+    [ObservableProperty] private bool _isPage8;
     [ObservableProperty] private string _setupJson = "";
     [ObservableProperty] private string _setupStatus = "";
 
@@ -81,12 +85,25 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _serverExePath = "";
     [ObservableProperty] private string _agentExePath = "";
 
+    // Telemetry Comparison
+    [ObservableProperty] private int _comparisonDriver1Index;
+    [ObservableProperty] private int _comparisonDriver2Index;
+    [ObservableProperty] private string _comparisonDriver1Name = "—";
+    [ObservableProperty] private string _comparisonDriver2Name = "—";
+    [ObservableProperty] private string _comparisonDriver1Stats = "";
+    [ObservableProperty] private string _comparisonDriver2Stats = "";
+    [ObservableProperty] private string _comparisonStatus = "Выберите двух пилотов для сравнения";
+
     public ObservableCollection<string> ServerLogLines { get; } = new();
     public ObservableCollection<string> AgentLogLines { get; } = new();
 
     private readonly Services.EmbeddedServerService? _embeddedServer;
     private readonly Services.EmbeddedAgentService? _embeddedAgent;
     private readonly Services.ManualUpdateService? _updateService;
+    private readonly Services.AutoSaveService? _autoSaveService;
+    private readonly Services.ExportService? _exportService;
+    private readonly Services.TelemetryComparisonService? _telemetryComparisonService;
+    private readonly Services.SettingsService? _settingsService;
 
     // Update UI
     [ObservableProperty] private string _currentVersionText = "";
@@ -96,6 +113,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isCheckingUpdate;
     [ObservableProperty] private int _updateProgress;
     private object? _pendingUpdate;
+
+    // Settings
+    [ObservableProperty] private int _ourCarNumber;
 
     public event Action? MapUpdated;
     private List<(double X, double Y)> _lastOutline = new();
@@ -121,6 +141,10 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand StopAgentCommand { get; }
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand InstallUpdateCommand { get; }
+    public ICommand ClearAutoSaveCommand { get; }
+    public ICommand ExportToJsonCommand { get; }
+    public ICommand ExportToCsvCommand { get; }
+    public ICommand CompareDriversCommand { get; }
 
     public MainViewModel(string baseUrl)
     {
@@ -138,6 +162,10 @@ public sealed partial class MainViewModel : ObservableObject
         StopAgentCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StopAgentAsync);
         CheckForUpdatesCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(CheckForUpdatesAsync);
         InstallUpdateCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(InstallUpdateAsync);
+        ClearAutoSaveCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ClearAutoSave);
+        ExportToJsonCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToJsonAsync);
+        ExportToCsvCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToCsvAsync);
+        CompareDriversCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(CompareDrivers);
 
         // Попытка найти Server и Agent рядом с клиентом
         TryLocateServerAndAgent();
@@ -199,6 +227,28 @@ public sealed partial class MainViewModel : ObservableObject
 
             CurrentVersionText = _updateService.CurrentVersion;
             LatestVersionText = "—";
+
+            // AutoSave service
+            _autoSaveService = new Services.AutoSaveService();
+
+            // Export service
+            _exportService = new Services.ExportService();
+
+            // Telemetry comparison service
+            _telemetryComparisonService = new Services.TelemetryComparisonService();
+
+            // Settings service
+            _settingsService = new Services.SettingsService();
+            var settings = _settingsService.LoadSettings();
+            OurCarNumber = settings.OurCarNumber;
+
+            // Попытка восстановить последнюю сессию
+            var restoredSnapshot = _autoSaveService.LoadLastSession();
+            if (restoredSnapshot != null)
+            {
+                ConnectionStatus = "Восстановлена последняя сессия";
+                ApplySnapshot(restoredSnapshot);
+            }
         }
         catch (Exception ex)
         {
@@ -363,6 +413,10 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _lastSnapshot = snapshot;
         DebugLog.Write($"snapshot: cars={snapshot.Cars.Count} stints={snapshot.Stints.Count} cur={snapshot.CurrentStint?.Driver}");
+
+        // Обновляем автосохранение
+        _autoSaveService?.UpdateSnapshot(snapshot);
+
         try
         {
             var rt = snapshot.Realtime;
@@ -875,8 +929,117 @@ public sealed partial class MainViewModel : ObservableObject
         IsPage4 = value == 4;
         IsPage5 = value == 5;
         IsPage6 = value == 6;
+        IsPage7 = value == 7;
+        IsPage8 = value == 8;
+    }
+
+    private void CompareDrivers()
+    {
+        if (_telemetryComparisonService == null || _lastSnapshot == null)
+        {
+            ComparisonStatus = "Нет данных для сравнения";
+            return;
+        }
+
+        try
+        {
+            var comparison = _telemetryComparisonService.CompareDrivers(
+                _lastSnapshot.Stints,
+                ComparisonDriver1Index,
+                ComparisonDriver2Index);
+
+            ComparisonDriver1Name = comparison.Driver1Name;
+            ComparisonDriver2Name = comparison.Driver2Name;
+
+            ComparisonDriver1Stats = FormatDriverStats(comparison.Driver1Stats);
+            ComparisonDriver2Stats = FormatDriverStats(comparison.Driver2Stats);
+
+            ComparisonStatus = "Сравнение выполнено";
+        }
+        catch (Exception ex)
+        {
+            ComparisonStatus = $"Ошибка сравнения: {ex.Message}";
+        }
+    }
+
+    private static string FormatDriverStats(Services.DriverStats stats)
+    {
+        return $"Стинтов: {stats.TotalStints}\n" +
+               $"Кругов: {stats.TotalLaps}\n" +
+               $"Общее время: {stats.TotalDuration:h\\:mm\\:ss}\n" +
+               $"Средняя длительность: {stats.AverageDuration:h\\:mm\\:ss}";
+    }
+
+    private void ClearAutoSave()
+    {
+        _autoSaveService?.ClearSave();
+        ConnectionStatus = "Автосохранение очищено";
+    }
+
+    private async Task ExportToJsonAsync()
+    {
+        if (_lastSnapshot == null || _exportService == null)
+        {
+            ConnectionStatus = "Нет данных для экспорта";
+            return;
+        }
+
+        try
+        {
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            var fileName = $"acc-session_{timestamp}.json";
+            var downloadsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                fileName);
+
+            var success = await _exportService.ExportToJsonAsync(_lastSnapshot, downloadsPath);
+            ConnectionStatus = success
+                ? $"Экспорт выполнен: {fileName}"
+                : "Ошибка экспорта JSON";
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = $"Ошибка экспорта: {ex.Message}";
+        }
+    }
+
+    private async Task ExportToCsvAsync()
+    {
+        if (_lastSnapshot == null || _exportService == null)
+        {
+            ConnectionStatus = "Нет данных для экспорта";
+            return;
+        }
+
+        try
+        {
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            var folderName = $"acc-session_{timestamp}";
+            var downloadsPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                folderName);
+
+            var success = await _exportService.ExportToCsvAsync(_lastSnapshot, downloadsPath);
+            ConnectionStatus = success
+                ? $"Экспорт выполнен: {folderName}"
+                : "Ошибка экспорта CSV";
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = $"Ошибка экспорта: {ex.Message}";
+        }
     }
 
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";
     private static string FormatDuration(DateTime end, DateTime start) => (end - start).ToString(@"h\:mm\:ss");
+
+    partial void OnOurCarNumberChanged(int value)
+    {
+        _settingsService?.SaveSettings(new Services.AppSettings
+        {
+            OurCarNumber = value
+        });
+    }
 }
