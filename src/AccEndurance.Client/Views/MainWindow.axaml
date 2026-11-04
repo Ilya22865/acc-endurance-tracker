@@ -413,6 +413,71 @@
           </Grid>
         </Panel>
 
+        <!-- PAGE 6 — НАСТРОЙКИ -->
+        <Panel IsVisible="{Binding IsPage6}" Margin="12">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Border Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1" CornerRadius="8,8,0,0" Padding="18,14">
+              <StackPanel Spacing="8">
+                <TextBlock Text="⚙️ Настройки приложения" Classes="h1"/>
+                <TextBlock Text="AccEndurance — Система мониторинга эндьюранс-гонок" Classes="muted"/>
+              </StackPanel>
+            </Border>
+
+            <!-- Update section -->
+            <Border Grid.Row="1" Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1,0,1,0" Padding="18,16">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                <TextBlock Text="ОБНОВЛЕНИЯ" FontSize="12" FontWeight="Bold" Foreground="#5A6472" Margin="0,0,0,12"/>
+
+                <Grid Grid.Row="1" ColumnDefinitions="150,*" Margin="0,0,0,8">
+                  <TextBlock Text="Текущая версия:" Foreground="#8A93A5" FontSize="13"/>
+                  <TextBlock Grid.Column="1" Text="{Binding CurrentVersionText}" FontSize="13" FontWeight="SemiBold" Foreground="#E1E6F0"/>
+                </Grid>
+
+                <Grid Grid.Row="2" ColumnDefinitions="150,*" Margin="0,0,0,8">
+                  <TextBlock Text="Последняя версия:" Foreground="#8A93A5" FontSize="13"/>
+                  <TextBlock Grid.Column="1" Text="{Binding LatestVersionText}" FontSize="13" FontWeight="SemiBold"
+                             Foreground="{Binding IsUpdateAvailable, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#FFC94A;#E1E6F0}"/>
+                </Grid>
+
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12" Margin="0,8,0,12">
+                  <Button Content="🔍 Проверить обновления" Command="{Binding CheckForUpdatesCommand}"
+                          Classes="accent" IsEnabled="{Binding !IsCheckingUpdate}"/>
+                  <Button Content="⬇️ Установить обновление" Command="{Binding InstallUpdateCommand}"
+                          Classes="accent" IsEnabled="{Binding IsUpdateAvailable}"/>
+                  <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Width="200" Height="8"
+                               IsVisible="{Binding IsCheckingUpdate}" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Border Grid.Row="4" Background="#14171C" BorderBrush="#2C333F" BorderThickness="1" CornerRadius="6" Padding="12">
+                  <TextBlock Text="{Binding UpdateStatus}" FontSize="12" Foreground="#C9D2DF" TextWrapping="Wrap"/>
+                </Border>
+              </Grid>
+            </Border>
+
+            <!-- Info section -->
+            <Border Grid.Row="2" Background="#1F242E" BorderBrush="#2C333F" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" Padding="18,16">
+              <StackPanel Spacing="16">
+                <StackPanel>
+                  <TextBlock Text="ИНФОРМАЦИЯ" FontSize="12" FontWeight="Bold" Foreground="#5A6472" Margin="0,0,0,12"/>
+                  <TextBlock Text="GitHub: https://github.com/Ilya22865/acc-endurance-tracker"
+                             FontSize="12" Foreground="#4FC3F7" Margin="0,0,0,6"/>
+                  <TextBlock Text="Лицензия: MIT" FontSize="12" Foreground="#8A93A5" Margin="0,0,0,6"/>
+                  <TextBlock Text="Платформа: .NET 10.0 + Avalonia UI" FontSize="12" Foreground="#8A93A5"/>
+                </StackPanel>
+
+                <StackPanel>
+                  <TextBlock Text="КОМПОНЕНТЫ" FontSize="12" FontWeight="Bold" Foreground="#5A6472" Margin="0,0,0,12"/>
+                  <TextBlock Text="• Real-time мониторинг позиций и кругов" FontSize="12" Foreground="#C9D2DF" Margin="0,0,0,4"/>
+                  <TextBlock Text="• Автоматическое управление стинтами" FontSize="12" Foreground="#C9D2DF" Margin="0,0,0,4"/>
+                  <TextBlock Text="• Запись телеметрии педалей и руля" FontSize="12" Foreground="#C9D2DF" Margin="0,0,0,4"/>
+                  <TextBlock Text="• Визуализация на карте трассы" FontSize="12" Foreground="#C9D2DF" Margin="0,0,0,4"/>
+                  <TextBlock Text="• Встроенный сервер и агент" FontSize="12" Foreground="#C9D2DF"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Panel>
+
         </Panel>
       </Border>
     </Grid>

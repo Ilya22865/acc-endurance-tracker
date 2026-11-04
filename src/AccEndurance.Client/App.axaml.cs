@@ -22,8 +22,20 @@ public partial class App : Application
             // в server.url обычно уже лежит "http://host:port"; раньше всегда добавлялось ещё одно "http://"
             var baseUrl = address.Contains("://") ? address : $"http://{address}";
             var mainWindow = new MainWindow { DataContext = new MainViewModel(baseUrl) };
+
+            // Автоматическое обновление в фоне (только для Velopack установок)
             mainWindow.Opened += async (_, _) =>
-                await Services.UpdateService.CheckAndApplyAsync();
+            {
+                try
+                {
+                    await Services.UpdateService.CheckAndApplyAsync();
+                }
+                catch (Exception ex)
+                {
+                    Diagnostics.DebugLog.Write($"Auto-update check failed: {ex.Message}");
+                }
+            };
+
             desktop.MainWindow = mainWindow;
         }
 

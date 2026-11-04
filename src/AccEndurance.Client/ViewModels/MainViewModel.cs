@@ -31,6 +31,7 @@ public sealed partial class MainViewModel : ObservableObject
         new NavItem { Code = "M", Title = "Карта", Accent = SolidColorBrush.Parse("#E84855") },
         new NavItem { Code = "SV", Title = "Сервер", Accent = SolidColorBrush.Parse("#BA68C8") },
         new NavItem { Code = "AG", Title = "Агент", Accent = SolidColorBrush.Parse("#F06292") },
+        new NavItem { Code = "⚙", Title = "Настройки", Accent = SolidColorBrush.Parse("#78909C") },
     };
     public ObservableCollection<string> SetupCars { get; } = new();
     public ObservableCollection<string> SetupTracks { get; } = new();
@@ -58,6 +59,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isPage3;
     [ObservableProperty] private bool _isPage4;
     [ObservableProperty] private bool _isPage5;
+    [ObservableProperty] private bool _isPage6;
     [ObservableProperty] private string _setupJson = "";
     [ObservableProperty] private string _setupStatus = "";
 
@@ -84,6 +86,16 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly Services.EmbeddedServerService? _embeddedServer;
     private readonly Services.EmbeddedAgentService? _embeddedAgent;
+    private readonly Services.ManualUpdateService? _updateService;
+
+    // Update UI
+    [ObservableProperty] private string _currentVersionText = "";
+    [ObservableProperty] private string _latestVersionText = "";
+    [ObservableProperty] private string _updateStatus = "Нажмите кнопку для проверки обновлений";
+    [ObservableProperty] private bool _isUpdateAvailable;
+    [ObservableProperty] private bool _isCheckingUpdate;
+    [ObservableProperty] private int _updateProgress;
+    private object? _pendingUpdate;
 
     public event Action? MapUpdated;
     private List<(double X, double Y)> _lastOutline = new();
@@ -107,6 +119,8 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand StopServerCommand { get; }
     public ICommand StartAgentCommand { get; }
     public ICommand StopAgentCommand { get; }
+    public ICommand CheckForUpdatesCommand { get; }
+    public ICommand InstallUpdateCommand { get; }
 
     public MainViewModel(string baseUrl)
     {
@@ -122,6 +136,8 @@ public sealed partial class MainViewModel : ObservableObject
         StopServerCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StopServerAsync);
         StartAgentCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StartAgentAsync);
         StopAgentCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(StopAgentAsync);
+        CheckForUpdatesCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(CheckForUpdatesAsync);
+        InstallUpdateCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(InstallUpdateAsync);
 
         // Попытка найти Server и Agent рядом с клиентом
         TryLocateServerAndAgent();
@@ -168,6 +184,21 @@ public sealed partial class MainViewModel : ObservableObject
                     AgentStatus = running ? "Запущен" : "Остановлен";
                 });
             };
+
+            // Update service
+            _updateService = new Services.ManualUpdateService(
+                loggerFactory.CreateLogger(typeof(Services.ManualUpdateService).FullName ?? "UpdateService"));
+            _updateService.OnStatusChanged += status =>
+            {
+                Dispatcher.UIThread.Post(() => UpdateStatus = status);
+            };
+            _updateService.OnProgressChanged += progress =>
+            {
+                Dispatcher.UIThread.Post(() => UpdateProgress = progress);
+            };
+
+            CurrentVersionText = _updateService.CurrentVersion;
+            LatestVersionText = "—";
         }
         catch (Exception ex)
         {
@@ -224,6 +255,35 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task StopAgentAsync()
     {
         await (_embeddedAgent?.StopAsync() ?? Task.CompletedTask);
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (_updateService == null) return;
+
+        IsCheckingUpdate = true;
+        IsUpdateAvailable = false;
+        _pendingUpdate = null;
+
+        var result = await _updateService.CheckForUpdatesAsync();
+
+        CurrentVersionText = result.CurrentVersion;
+        LatestVersionText = result.LatestVersion;
+        IsUpdateAvailable = result.IsUpdateAvailable;
+        _pendingUpdate = result.UpdateInfo;
+
+        IsCheckingUpdate = false;
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (_updateService == null || _pendingUpdate == null) return;
+
+        var success = await _updateService.DownloadAndApplyUpdateAsync(_pendingUpdate);
+        if (!success)
+        {
+            UpdateStatus = "❌ Не удалось установить обновление";
+        }
     }
 
     private bool _connecting;
@@ -814,6 +874,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsPage3 = value == 3;
         IsPage4 = value == 4;
         IsPage5 = value == 5;
+        IsPage6 = value == 6;
     }
 
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";
