@@ -301,8 +301,8 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 5 — SETUP -->
-        <Panel IsVisible="{Binding IsPage5}" Margin="16">
+        <!-- PAGE 4 — SETUP -->
+        <Panel IsVisible="{Binding IsPage4}" Margin="16">
           <Grid RowDefinitions="Auto,Auto,*">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
               <Grid ColumnDefinitions="Auto,200,Auto,220,*,Auto,Auto" ColumnSpacing="12">
@@ -388,8 +388,8 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 4 — MAP -->
-        <Panel IsVisible="{Binding IsPage7}" Margin="16">
+        <!-- PAGE 5 — MAP -->
+        <Panel IsVisible="{Binding IsPage5}" Margin="16">
           <Grid ColumnDefinitions="*,240">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
               <Grid RowDefinitions="Auto,*">
@@ -422,8 +422,8 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 4 — SERVER -->
-        <Panel IsVisible="{Binding IsPage7}" Margin="16">
+        <!-- PAGE 6 — SERVER -->
+        <Panel IsVisible="{Binding IsPage6}" Margin="16">
           <Grid RowDefinitions="Auto,*">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
               <Grid ColumnDefinitions="Auto,*,Auto,Auto">
@@ -450,7 +450,7 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 5 — AGENT -->
+        <!-- PAGE 7 — AGENT -->
         <Panel IsVisible="{Binding IsPage7}" Margin="16">
           <Grid RowDefinitions="Auto,*">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
@@ -480,8 +480,8 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 6 — SETTINGS -->
-        <Panel IsVisible="{Binding IsPage7}" Margin="16">
+        <!-- PAGE 8 — SETTINGS -->
+        <Panel IsVisible="{Binding IsPage8}" Margin="16">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="24" Margin="0,0,0,20">
 
