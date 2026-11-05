@@ -25,7 +25,7 @@ public sealed class EmbeddedAgentService : IDisposable
         _logger = logger;
     }
 
-    public async Task<bool> StartAsync(string agentExePath, string serverUrl, int driverIndex, string? workingDirectory = null)
+    public async Task<bool> StartAsync(string agentExePath, string serverUrl, int driverIndex, string? workingDirectory = null, bool useFakeData = false)
     {
         if (_isRunning)
         {
@@ -41,9 +41,11 @@ public sealed class EmbeddedAgentService : IDisposable
                 return false;
             }
 
-            AddLog($"🚀 Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}");
+            AddLog($"🚀 Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}, FakeData={useFakeData}");
 
             var args = $"--server {serverUrl} --driver-index {driverIndex}";
+            if (useFakeData)
+                args += " --fake";
 
             var startInfo = new ProcessStartInfo
             {

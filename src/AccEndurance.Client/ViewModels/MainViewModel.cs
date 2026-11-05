@@ -86,6 +86,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private int _selectedDriverIndex;
     [ObservableProperty] private string _serverExePath = "";
     [ObservableProperty] private string _agentExePath = "";
+    [ObservableProperty] private bool _agentUseFakeData = true;
 
     // Live telemetry (страница «Телеметрия»)
     public Services.TelemetryBuffer Telemetry { get; } = new();
@@ -310,7 +311,7 @@ public sealed partial class MainViewModel : ObservableObject
             AgentLogLines.Add("❌ Путь к AccEndurance.Agent.exe не указан");
             return;
         }
-        await (_embeddedAgent?.StartAsync(AgentExePath, ServerUrl, SelectedDriverIndex) ?? Task.CompletedTask);
+        await (_embeddedAgent?.StartAsync(AgentExePath, ServerUrl, SelectedDriverIndex, useFakeData: AgentUseFakeData) ?? Task.CompletedTask);
     }
 
     private async Task StopAgentAsync()

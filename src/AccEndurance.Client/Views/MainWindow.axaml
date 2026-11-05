@@ -520,7 +520,7 @@
         <Panel IsVisible="{Binding IsPage7}" Margin="16">
           <Grid RowDefinitions="Auto,*">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,200,Auto,80,*,Auto,Auto">
+              <Grid ColumnDefinitions="Auto,200,Auto,80,Auto,Auto,*,Auto,Auto">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                   <TextBlock Text="Agent" Classes="h2" VerticalAlignment="Center"/>
                   <Border CornerRadius="3" Padding="6,3" Background="{Binding IsAgentRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#1A3A2E;#1A1D23}">
@@ -531,9 +531,11 @@
                 <TextBox Grid.Column="1" PlaceholderText="Path to Agent.exe" Text="{Binding AgentExePath}" Margin="16,0,0,0"/>
                 <TextBlock Grid.Column="2" Text="DriverIndex" Classes="muted" VerticalAlignment="Center" Margin="12,0"/>
                 <TextBox Grid.Column="3" Text="{Binding SelectedDriverIndex}" Width="80"/>
-                <Button Grid.Column="5" Content="Start" Command="{Binding StartAgentCommand}"
+                <CheckBox Grid.Column="4" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center" Margin="12,0"/>
+                <TextBlock Grid.Column="5" Text="Use Fake Data" Classes="muted" VerticalAlignment="Center"/>
+                <Button Grid.Column="7" Content="Start" Command="{Binding StartAgentCommand}"
                         Classes="primary" IsEnabled="{Binding !IsAgentRunning}" Margin="0,0,8,0"/>
-                <Button Grid.Column="6" Content="Stop" Command="{Binding StopAgentCommand}"
+                <Button Grid.Column="8" Content="Stop" Command="{Binding StopAgentCommand}"
                         Classes="secondary" IsEnabled="{Binding IsAgentRunning}"/>
               </Grid>
             </Border>
