@@ -1,5 +1,8 @@
+using AccEndurance.Server.Hubs;
 using AccEndurance.Server.Services;
+using AccEndurance.Shared.Dto;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace AccEndurance.Server.Controllers;
 
@@ -8,10 +11,12 @@ namespace AccEndurance.Server.Controllers;
 public sealed class TelemetryController : ControllerBase
 {
     private readonly SessionStateService _sessionState;
+    private readonly IHubContext<SessionHub> _hub;
 
-    public TelemetryController(SessionStateService sessionState)
+    public TelemetryController(SessionStateService sessionState, IHubContext<SessionHub> hub)
     {
         _sessionState = sessionState;
+        _hub = hub;
     }
 
     [HttpPost("register")]
@@ -23,7 +28,7 @@ public sealed class TelemetryController : ControllerBase
     }
 
     [HttpPost("batch")]
-    public IActionResult ReceiveBatch([FromBody] AgentBatchRequest request)
+    public async Task<IActionResult> ReceiveBatch([FromBody] AgentBatchRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DriverId)) return BadRequest("driverId required");
         if (request.Samples == null || request.Samples.Count == 0) return Ok(new { accepted = 0 });
@@ -32,8 +37,29 @@ public sealed class TelemetryController : ControllerBase
             .Select(s => (s.Gas, s.Brake, s.SteerAngle))
             .ToList();
 
-        var accepted = _sessionState.AcceptTelemetryBatch(request.DriverId, readings);
-        return Ok(new { received = readings.Count, accepted = accepted.Count });
+        var result = _sessionState.AcceptTelemetryBatch(request.DriverId, readings);
+
+        // 409 — сигнал агенту, что регистрация потеряна (например, сервер перезапустили): нужно зарегистрироваться заново
+        if (!result.Registered)
+            return StatusCode(StatusCodes.Status409Conflict, new { error = "agent not registered" });
+
+        // «живая» телеметрия — сразу всем клиентам
+        if (result.Samples.Count > 0)
+        {
+            await _hub.Clients.All.SendAsync("TelemetryBatch", new TelemetryBatchDto
+            {
+                Driver = result.Driver,
+                DriverIndex = result.DriverIndex,
+                Samples = result.Samples.ToList(),
+            });
+        }
+
+        return Ok(new
+        {
+            received = readings.Count,
+            live = result.Samples.Count,
+            accepted = result.Persisted ? result.Samples.Count : 0,
+        });
     }
 
     public sealed class AgentRegisterRequest

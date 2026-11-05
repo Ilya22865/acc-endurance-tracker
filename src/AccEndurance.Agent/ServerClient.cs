@@ -46,9 +46,10 @@ public sealed class ServerClient : IDisposable
         }
     }
 
-    public async Task SendBatchAsync(IReadOnlyList<TelemetryReading> readings, string driverId, CancellationToken ct = default)
+    /// <summary>true — сервер принял пачку; false — ошибка сети или сервер не знает агента (нужна повторная регистрация).</summary>
+    public async Task<bool> SendBatchAsync(IReadOnlyList<TelemetryReading> readings, string driverId, CancellationToken ct = default)
     {
-        if (readings.Count == 0) return;
+        if (readings.Count == 0) return true;
 
         var payload = new
         {
@@ -65,13 +66,16 @@ public sealed class ServerClient : IDisposable
         try
         {
             using var response = await _http.PostAsJsonAsync($"{_baseUrl}/api/telemetry/batch", payload, ct);
+            return response.IsSuccessStatusCode;
         }
         catch (HttpRequestException ex)
         {
             Console.WriteLine($"[warn] Отправка батча не удалась: {ex.Message}");
+            return false;
         }
         catch (TaskCanceledException)
         {
+            return false;
         }
     }
 

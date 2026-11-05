@@ -39,6 +39,12 @@ public sealed class SessionStateService
     private int _currentSessionIndex;
     private string? _sessionKey;
 
+    // Определение смысла второго поля RealtimeUpdate (см. ProcessRealtimeUpdate)
+    private bool _timeProbeValid;
+    private TimeSpan _probeSessionTime;
+    private TimeSpan _probeSecondField;
+    private bool _secondFieldIsRemaining = true;
+
     private readonly List<(float S, float X, float Y)> _currentLapPoints = new();
     private bool _lapDirty;
     private List<OutlinePointDto>? _recordedOutline;
@@ -131,6 +137,7 @@ public sealed class SessionStateService
             _eventName = $"ACC {update.SessionType}";
             _realtime.SessionTime = update.SessionTime;
             _realtime.SessionEndTime = update.SessionEndTime;
+            _realtime.RemainingTime = ComputeRemaining(update);
             _realtime.TimeOfDay = update.TimeOfDay;
             _realtime.AmbientTemp = update.AmbientTemp;
             _realtime.TrackTemp = update.TrackTemp;
@@ -142,6 +149,31 @@ public sealed class SessionStateService
             _isSessionActive = update.Phase == BC.SessionPhase.Session || update.Phase == BC.SessionPhase.FormationLap;
         }
         MaybeBroadcast();
+    }
+
+    // Вызывать под _lock.
+    // ACC присылает вторым значением время, и в разных описаниях протокола оно названо то
+    // «SessionEndTime», то «RemainingTime». Раньше клиент считал «осталось» как EndTime - SessionTime;
+    // если это поле уже «осталось», получалась отрицательная разность, и таймер не обновлялся вообще.
+    // Определяем смысл по поведению: пока игровое время растёт, «осталось» убывает, а «время конца» — нет.
+    private TimeSpan ComputeRemaining(RealtimeUpdate update)
+    {
+        var tolerance = TimeSpan.FromMilliseconds(10);
+        if (_timeProbeValid && update.SessionTime > _probeSessionTime)
+        {
+            var delta = update.SessionEndTime - _probeSecondField;
+            if (delta < -tolerance) _secondFieldIsRemaining = true;
+            else if (delta > tolerance) _secondFieldIsRemaining = false;
+        }
+        _timeProbeValid = true;
+        _probeSessionTime = update.SessionTime;
+        _probeSecondField = update.SessionEndTime;
+
+        if (_secondFieldIsRemaining)
+            return update.SessionEndTime < TimeSpan.Zero ? TimeSpan.Zero : update.SessionEndTime;
+
+        var left = update.SessionEndTime - update.SessionTime;
+        return left < TimeSpan.Zero ? TimeSpan.Zero : left;
     }
 
     // Вызывать под _lock. Новая сессия (другой Event/Session/тип) — старые стинты, позиции и
@@ -158,6 +190,7 @@ public sealed class SessionStateService
         _lastRecordedLap = -1;
         _lapDirty = false;
         _currentLapPoints.Clear();
+        _timeProbeValid = false;
     }
 
     public void ProcessRealtimeCarUpdate(RealtimeCarUpdate update)
@@ -194,6 +227,8 @@ public sealed class SessionStateService
             state.SplinePosition = update.SplinePosition;
             state.Kmh = update.Kmh;
             state.SpeedMps = update.Kmh / 3.6;
+            state.WorldX = update.WorldPosX;
+            state.WorldY = update.WorldPosY;
             state.DeltaMs = update.Delta;
             // раньше эти поля никогда не заполнялись, и колонки «Последний/Лучший круг» были пустыми
             state.LastLapMs = ValidLapMs(update.LastLap);
@@ -663,36 +698,53 @@ public sealed class SessionStateService
     private readonly Dictionary<string, DateTime> _lastBatchAt = new();
     private readonly Stopwatch _telemetryFlushClock = Stopwatch.StartNew();
 
-    public IReadOnlyList<TelemetrySampleDto> AcceptTelemetryBatch(string agentId, IReadOnlyList<(float Gas, float Brake, float SteerAngle)> readings)
+    /// <summary>
+    /// Принимает пачку сэмплов от агента. Для «живых» графиков сэмплы отдаются клиентам ВСЕГДА, когда
+    /// агент зарегистрирован. В БД они пишутся только когда сессия идёт и за рулём именно этот пилот.
+    /// (Раньше при несовпадении пилота/сессии данные просто выбрасывались, и графики были бы пустыми.)
+    /// </summary>
+    public TelemetryAcceptResult AcceptTelemetryBatch(string agentId, IReadOnlyList<(float Gas, float Brake, float SteerAngle)> readings)
     {
-        // Всё под одной блокировкой: раньше _currentStint проверялся на null снаружи,
-        // а потом разыменовывался — между этим поток ACC мог его обнулить (NullReferenceException → HTTP 500).
         lock (_lock)
         {
-            if (!_isSessionActive) return Array.Empty<TelemetrySampleDto>();
-            if (!TryGetRegisteredDriverIndex(agentId, out var agentDriverIndex, out _))
-                return Array.Empty<TelemetrySampleDto>();
+            if (!TryGetRegisteredDriverIndex(agentId, out var agentDriverIndex, out var registeredName))
+                return TelemetryAcceptResult.NotRegistered;
+
             var stint = _currentStint;
-            if (stint == null || stint.DriverIndex != agentDriverIndex)
-                return Array.Empty<TelemetrySampleDto>();
+            var persist = _isSessionActive && stint != null && stint.DriverIndex == agentDriverIndex;
 
-            // Агент присылает пачку раз в ~1 с. Раскладываем сэмплы по интервалу с прошлой пачки,
+            // имя пилота для подписи на графиках
+            string driverName;
+            if (persist)
+            {
+                driverName = stint!.Driver;
+            }
+            else
+            {
+                var ourCar = _entryList.Values.FirstOrDefault(IsOurCarInfo);
+                driverName = ourCar != null && agentDriverIndex >= 0 && agentDriverIndex < ourCar.Drivers.Count
+                    ? ourCar.Drivers[agentDriverIndex].ShortName
+                    : (!string.IsNullOrWhiteSpace(registeredName) ? registeredName : $"Driver {agentDriverIndex}");
+            }
+
+            // Агент присылает пачку несколько раз в секунду. Раскладываем сэмплы по интервалу с прошлой пачки,
             // а не ставим всем одну и ту же метку времени.
+            var count = Math.Max(readings.Count, 1);
             var now = DateTime.UtcNow;
-            var windowStart = _lastBatchAt.TryGetValue(agentId, out var prev) ? prev : now - TimeSpan.FromSeconds(1);
+            var windowStart = _lastBatchAt.TryGetValue(agentId, out var prev) ? prev : now - TimeSpan.FromMilliseconds(250);
             if (now - windowStart > TimeSpan.FromSeconds(5)) windowStart = now - TimeSpan.FromSeconds(5);
-            if (now <= windowStart) windowStart = now - TimeSpan.FromMilliseconds(Math.Max(readings.Count, 1));
+            if (now <= windowStart) windowStart = now - TimeSpan.FromMilliseconds(count);
             _lastBatchAt[agentId] = now;
-            var step = (now - windowStart) / Math.Max(readings.Count, 1);
+            var step = (now - windowStart) / count;
 
-            var accepted = new List<TelemetrySampleDto>(readings.Count);
+            var samples = new List<TelemetrySampleDto>(readings.Count);
             for (int i = 0; i < readings.Count; i++)
             {
                 var r = readings[i];
-                accepted.Add(new TelemetrySampleDto
+                samples.Add(new TelemetrySampleDto
                 {
-                    DriverId = stint.Driver,
-                    StintId = stint.Id,
+                    DriverId = driverName,
+                    StintId = persist ? stint!.Id : 0,
                     Timestamp = windowStart + step * (i + 1),
                     Gas = r.Gas,
                     Brake = r.Brake,
@@ -700,14 +752,17 @@ public sealed class SessionStateService
                 });
             }
 
-            if (!_pendingTelemetry.TryGetValue(stint.Driver, out var list))
+            if (persist)
             {
-                list = new List<TelemetrySampleDto>();
-                _pendingTelemetry[stint.Driver] = list;
+                if (!_pendingTelemetry.TryGetValue(driverName, out var list))
+                {
+                    list = new List<TelemetrySampleDto>();
+                    _pendingTelemetry[driverName] = list;
+                }
+                list.AddRange(samples);
             }
-            list.AddRange(accepted);
 
-            return accepted;
+            return new TelemetryAcceptResult(true, persist, samples, driverName, agentDriverIndex);
         }
     }
 
@@ -747,4 +802,15 @@ public sealed class SessionStateService
             }
         }
     }
+}
+
+public sealed record TelemetryAcceptResult(
+    bool Registered,
+    bool Persisted,
+    IReadOnlyList<TelemetrySampleDto> Samples,
+    string Driver,
+    int DriverIndex)
+{
+    public static TelemetryAcceptResult NotRegistered { get; } =
+        new(false, false, Array.Empty<TelemetrySampleDto>(), "", -1);
 }

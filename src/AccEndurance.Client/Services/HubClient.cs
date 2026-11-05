@@ -42,6 +42,11 @@ public sealed class HubClient : IAsyncDisposable
         _connection.On<SessionSnapshotDto>("StateUpdate", handler);
     }
 
+    public void OnTelemetry(Action<TelemetryBatchDto> handler)
+    {
+        _connection.On<TelemetryBatchDto>("TelemetryBatch", handler);
+    }
+
     public void OnOutlineRecorded(Action<IReadOnlyList<OutlinePointDto>> handler)
     {
         _connection.On<IReadOnlyList<OutlinePointDto>>("OutlineRecorded", handler);

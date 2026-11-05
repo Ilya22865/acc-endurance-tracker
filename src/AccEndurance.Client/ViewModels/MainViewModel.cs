@@ -27,7 +27,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         new NavItem { Code = "P", Title = "Позиции", Accent = SolidColorBrush.Parse("#2EBD93") },
         new NavItem { Code = "S", Title = "Стинты", Accent = SolidColorBrush.Parse("#4FC3F7") },
-        new NavItem { Code = "T", Title = "Сравнение", Accent = SolidColorBrush.Parse("#2962FF") },
+        new NavItem { Code = "T", Title = "Телеметрия", Accent = SolidColorBrush.Parse("#2962FF") },
         new NavItem { Code = "R", Title = "Радар", Accent = SolidColorBrush.Parse("#FF6B6B") },
         new NavItem { Code = "A", Title = "Сетап", Accent = SolidColorBrush.Parse("#FFB74D") },
         new NavItem { Code = "M", Title = "Карта", Accent = SolidColorBrush.Parse("#E84855") },
@@ -46,6 +46,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _timeText = "—";
     [ObservableProperty] private string _ourDriverText = "—";
     [ObservableProperty] private string _serverUrl = "";
+    [ObservableProperty] private string _serverAddress = "127.0.0.1";
     [ObservableProperty] private StintRow? _selectedStint;
     [ObservableProperty] private string? _editNotes;
     [ObservableProperty] private double? _editFuel;
@@ -64,6 +65,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isPage6;
     [ObservableProperty] private bool _isPage7;
     [ObservableProperty] private bool _isPage8;
+    [ObservableProperty] private bool _isPage9;
     [ObservableProperty] private string _setupJson = "";
     [ObservableProperty] private string _setupStatus = "";
 
@@ -85,14 +87,24 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _serverExePath = "";
     [ObservableProperty] private string _agentExePath = "";
 
-    // Telemetry Comparison
-    [ObservableProperty] private int _comparisonDriver1Index;
-    [ObservableProperty] private int _comparisonDriver2Index;
-    [ObservableProperty] private string _comparisonDriver1Name = "—";
-    [ObservableProperty] private string _comparisonDriver2Name = "—";
-    [ObservableProperty] private string _comparisonDriver1Stats = "";
-    [ObservableProperty] private string _comparisonDriver2Stats = "";
-    [ObservableProperty] private string _comparisonStatus = "Выберите двух пилотов для сравнения";
+    // Live telemetry (страница «Телеметрия»)
+    public Services.TelemetryBuffer Telemetry { get; } = new();
+    [ObservableProperty] private string _telemetryDriverName = "—";
+    [ObservableProperty] private string _telemetryStatus = "Ожидание данных от агента…";
+    [ObservableProperty] private string _telemetryRateText = "—";
+    [ObservableProperty] private string _gasText = "0%";
+    [ObservableProperty] private string _brakeText = "0%";
+    [ObservableProperty] private string _steerText = "0.00";
+    [ObservableProperty] private int _telemetryWindowIndex = 1; // 0 = 15 с, 1 = 30 с, 2 = 60 с
+    public double TelemetryWindowSeconds => TelemetryWindowIndex switch { 0 => 15, 2 => 60, _ => 30 };
+    public ICommand ClearTelemetryCommand { get; }
+
+    // Telemetry Statistics
+    [ObservableProperty] private string _telemetryAvgGas = "0%";
+    [ObservableProperty] private string _telemetryAvgBrake = "0%";
+    [ObservableProperty] private string _telemetryMaxSteer = "0°";
+    [ObservableProperty] private string _telemetryBrakeTime = "0%";
+    [ObservableProperty] private string _telemetryFullThrottleTime = "0%";
 
     public ObservableCollection<string> ServerLogLines { get; } = new();
     public ObservableCollection<string> AgentLogLines { get; } = new();
@@ -144,7 +156,6 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand ClearAutoSaveCommand { get; }
     public ICommand ExportToJsonCommand { get; }
     public ICommand ExportToCsvCommand { get; }
-    public ICommand CompareDriversCommand { get; }
 
     public MainViewModel(string baseUrl)
     {
@@ -165,7 +176,7 @@ public sealed partial class MainViewModel : ObservableObject
         ClearAutoSaveCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ClearAutoSave);
         ExportToJsonCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToJsonAsync);
         ExportToCsvCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToCsvAsync);
-        CompareDriversCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(CompareDrivers);
+        ClearTelemetryCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => Telemetry.Clear());
 
         // Попытка найти Server и Agent рядом с клиентом
         TryLocateServerAndAgent();
@@ -242,12 +253,12 @@ public sealed partial class MainViewModel : ObservableObject
             var settings = _settingsService.LoadSettings();
             OurCarNumber = settings.OurCarNumber;
 
-            // Попытка восстановить последнюю сессию
+            // Попытка восстановить последнюю сессию (только если подключение не удалось)
             var restoredSnapshot = _autoSaveService.LoadLastSession();
-            if (restoredSnapshot != null)
+            if (restoredSnapshot != null && !string.IsNullOrEmpty(ServerUrl))
             {
-                ConnectionStatus = "Восстановлена последняя сессия";
-                ApplySnapshot(restoredSnapshot);
+                // Не восстанавливаем автоматически - пользователь должен подключиться
+                DebugLog.Write("AutoSave: snapshot found but not restored (connect manually)");
             }
         }
         catch (Exception ex)
@@ -361,7 +372,8 @@ public sealed partial class MainViewModel : ObservableObject
         HubClient? hub = null;
         try
         {
-            _api = new ApiClient(_baseUrl);
+            var url = $"http://{ServerAddress}:5000";
+            _api = new ApiClient(url);
             var initial = await _api.GetSnapshotAsync();
             if (initial == null)
             {
@@ -369,8 +381,6 @@ public sealed partial class MainViewModel : ObservableObject
                 return false;
             }
 
-            // Старое соединение закрываем: иначе при повторном подключении обработчики дублировались
-            // и соединение утекало.
             var old = _hub;
             _hub = null;
             if (old != null)
@@ -378,18 +388,18 @@ public sealed partial class MainViewModel : ObservableObject
                 try { await old.DisposeAsync(); } catch { }
             }
 
-            hub = new HubClient(_baseUrl);
+            hub = new HubClient(url);
             hub.OnSnapshot(snapshot => Dispatcher.UIThread.Post(() => ApplySnapshot(snapshot)));
             hub.OnOutlineRecorded(points => Dispatcher.UIThread.Post(() => ApplyRecordedOutline(points)));
+            hub.OnTelemetry(batch => Dispatcher.UIThread.Post(() => ApplyTelemetry(batch)));
             hub.ConnectionChanged += (ok, text) => Dispatcher.UIThread.Post(() =>
             {
                 IsConnected = ok;
                 ConnectionStatus = text;
+                if (!ok) ClearAllData();
             });
             await hub.ConnectAsync();
 
-            // «Подключено» выставляем только если SignalR реально поднялся
-            // (раньше статус перезаписывался на «Подключено» даже после ошибки SignalR).
             _hub = hub;
             IsConnected = true;
             ConnectionStatus = "Подключено";
@@ -405,6 +415,7 @@ public sealed partial class MainViewModel : ObservableObject
             }
             IsConnected = false;
             ConnectionStatus = $"Ошибка: {ex.Message}";
+            ClearAllData();
             return false;
         }
     }
@@ -425,8 +436,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         SessionText = $"{rt.SessionType} · {rt.TrackName ?? "трек"}";
         PhaseText = rt.Phase;
-        if (rt.SessionEndTime >= rt.SessionTime)
-            TimeText = $"{rt.SessionEndTime - rt.SessionTime:hh\\:mm\\:ss} осталось";
+        // RemainingTime считает сервер. Старый сервер (без этого поля) присылает 0 — тогда запасная формула.
+        var remaining = rt.RemainingTime > TimeSpan.Zero
+            ? rt.RemainingTime
+            : (rt.SessionEndTime > rt.SessionTime ? rt.SessionEndTime - rt.SessionTime : TimeSpan.Zero);
+        TimeText = $"{FormatClock(remaining)} осталось · прошло {FormatClock(rt.SessionTime)}";
 
         WeatherAir = $"{rt.AmbientTemp}°C";
         WeatherTrack = $"{rt.TrackTemp}°C";
@@ -496,9 +510,9 @@ public sealed partial class MainViewModel : ObservableObject
                 Ordinal = rows.Count + 1,
                 LapNumber = s.LapNumber,
                 StartReal = s.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-                StartGame = s.StartSessionTime.ToString(@"hh\:mm\:ss"),
+                StartGame = FormatClock(s.StartSessionTime),
                 EndReal = s.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
-                EndGame = s.EndSessionTime?.ToString(@"hh\:mm\:ss") ?? "—",
+                EndGame = s.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
                 IsOpen = open,
                 Duration = FormatDuration(s.EndedAt ?? DateTime.UtcNow, s.StartedAt),
                 Notes = s.Notes,
@@ -517,7 +531,7 @@ public sealed partial class MainViewModel : ObservableObject
                 Ordinal = rows.Count + 1,
                 LapNumber = snapshot.CurrentStint.LapNumber,
                 StartReal = snapshot.CurrentStint.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-                StartGame = snapshot.CurrentStint.StartSessionTime.ToString(@"hh\:mm\:ss"),
+                StartGame = FormatClock(snapshot.CurrentStint.StartSessionTime),
                 IsOpen = true,
                 Duration = FormatDuration(DateTime.UtcNow, snapshot.CurrentStint.StartedAt),
                 Notes = snapshot.CurrentStint.Notes,
@@ -931,49 +945,109 @@ public sealed partial class MainViewModel : ObservableObject
         IsPage6 = value == 6;
         IsPage7 = value == 7;
         IsPage8 = value == 8;
+        IsPage9 = value == 9;
     }
 
-    private void CompareDrivers()
+    public SessionSnapshotDto? LastSnapshot => _lastSnapshot;
+
+    private void ApplyTelemetry(TelemetryBatchDto batch)
     {
-        if (_telemetryComparisonService == null || _lastSnapshot == null)
+        Telemetry.Add(batch.Samples);
+        if (!string.IsNullOrWhiteSpace(batch.Driver))
+            TelemetryDriverName = batch.Driver;
+    }
+
+    /// <summary>Вызывается таймером окна: обновляет текущие значения и статус.</summary>
+    public void RefreshTelemetryTexts()
+    {
+        var latest = Telemetry.Latest;
+        var age = Telemetry.Now - Telemetry.LastSampleAt;
+        if (latest is TelemetryPoint p && age < 2.0)
         {
-            ComparisonStatus = "Нет данных для сравнения";
+            GasText = $"{p.Gas * 100:F0}%";
+            BrakeText = $"{p.Brake * 100:F0}%";
+            SteerText = $"{p.Steer:+0.00;-0.00;0.00}";
+            TelemetryRateText = $"{Telemetry.Rate():F0} Гц";
+            TelemetryStatus = "● Запись идёт";
+        }
+        else
+        {
+            GasText = "—";
+            BrakeText = "—";
+            SteerText = "—";
+            TelemetryRateText = "—";
+            TelemetryStatus = Telemetry.Points.Count == 0
+                ? "Нет данных — запустите агент (вкладка «Агент») и выберите пилота"
+                : "Данные не поступают (агент остановлен или ACC закрыт)";
+        }
+        UpdateTelemetryStats();
+    }
+
+    private void UpdateTelemetryStats()
+    {
+        if (Telemetry.Points.Count == 0)
+        {
+            TelemetryAvgGas = "0%";
+            TelemetryAvgBrake = "0%";
+            TelemetryMaxSteer = "0°";
+            TelemetryBrakeTime = "0%";
+            TelemetryFullThrottleTime = "0%";
             return;
         }
 
-        try
+        double sumGas = 0, sumBrake = 0, maxSteer = 0, brakeTime = 0, fullThrottleTime = 0;
+        for (int i = 0; i < Telemetry.Points.Count; i++)
         {
-            var comparison = _telemetryComparisonService.CompareDrivers(
-                _lastSnapshot.Stints,
-                ComparisonDriver1Index,
-                ComparisonDriver2Index);
-
-            ComparisonDriver1Name = comparison.Driver1Name;
-            ComparisonDriver2Name = comparison.Driver2Name;
-
-            ComparisonDriver1Stats = FormatDriverStats(comparison.Driver1Stats);
-            ComparisonDriver2Stats = FormatDriverStats(comparison.Driver2Stats);
-
-            ComparisonStatus = "Сравнение выполнено";
+            var p = Telemetry.Points[i];
+            sumGas += p.Gas;
+            sumBrake += p.Brake;
+            maxSteer = Math.Max(maxSteer, Math.Abs(p.Steer));
+            if (p.Brake > 0.1) brakeTime++;
+            if (p.Gas > 0.9) fullThrottleTime++;
         }
-        catch (Exception ex)
-        {
-            ComparisonStatus = $"Ошибка сравнения: {ex.Message}";
-        }
-    }
 
-    private static string FormatDriverStats(Services.DriverStats stats)
-    {
-        return $"Стинтов: {stats.TotalStints}\n" +
-               $"Кругов: {stats.TotalLaps}\n" +
-               $"Общее время: {stats.TotalDuration:h\\:mm\\:ss}\n" +
-               $"Средняя длительность: {stats.AverageDuration:h\\:mm\\:ss}";
+        TelemetryAvgGas = $"{sumGas / Telemetry.Points.Count * 100:F0}%";
+        TelemetryAvgBrake = $"{sumBrake / Telemetry.Points.Count * 100:F0}%";
+        TelemetryMaxSteer = $"{maxSteer:F1}°";
+        TelemetryBrakeTime = $"{brakeTime / Telemetry.Points.Count * 100:F0}%";
+        TelemetryFullThrottleTime = $"{fullThrottleTime / Telemetry.Points.Count * 100:F0}%";
     }
 
     private void ClearAutoSave()
     {
         _autoSaveService?.ClearSave();
         ConnectionStatus = "Автосохранение очищено";
+    }
+
+    private void ClearAllData()
+    {
+        _lastSnapshot = null;
+        _lastOutline.Clear();
+        _lastDots.Clear();
+        _recordedOutline = null;
+        Telemetry.Clear();
+        Standings.Clear();
+        Stints.Clear();
+        _stintById.Clear();
+
+        SessionText = "—";
+        PhaseText = "—";
+        TimeText = "—";
+        OurDriverText = "—";
+        TelemetryDriverName = "—";
+        TelemetryStatus = "Ожидание данных от агента…";
+        TelemetryRateText = "—";
+        GasText = "0%";
+        BrakeText = "0%";
+        SteerText = "0.00";
+        MapTrackName = "";
+        WeatherAir = "";
+        WeatherTrack = "";
+        WeatherRain = "";
+        WeatherClouds = "";
+        WeatherWetness = "";
+
+        MapUpdated?.Invoke();
     }
 
     private async Task ExportToJsonAsync()
@@ -1030,6 +1104,13 @@ public sealed partial class MainViewModel : ObservableObject
         {
             ConnectionStatus = $"Ошибка экспорта: {ex.Message}";
         }
+    }
+
+    // Часы:минуты:секунды без переполнения на 24 часах («hh» в TimeSpan показывает только 0–23 часа).
+    private static string FormatClock(TimeSpan t)
+    {
+        if (t < TimeSpan.Zero) t = TimeSpan.Zero;
+        return $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00}";
     }
 
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";

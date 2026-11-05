@@ -16,37 +16,49 @@ public sealed class FakeAccDataSource : IAccDataSource
     {
     }
 
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+    private int _packetId;
+
+    // Имитация круга: разгон → торможение → поворот → разгон. Нужна, чтобы проверять графики без ACC.
     public bool TryReadSample(out TelemetryReading sample)
     {
-        var gas = 0.0f;
-        var brake = 0.0f;
-        var steer = (float)(_random.NextDouble() * 0.4 - 0.2);
+        var t = _clock.Elapsed.TotalSeconds;
+        var phase = (t % 12.0) / 12.0; // «круг» 12 секунд
+
+        var gas = 0.0;
+        var brake = 0.0;
+        var steer = 0.0;
 
         if (_simulateDriver)
         {
-            var mode = _random.NextDouble();
-            if (mode < 0.7)
+            if (phase < 0.45)                      // прямая
             {
-                gas = (float)(0.6 + _random.NextDouble() * 0.4);
-                steer = (float)(_random.NextDouble() * 0.3 - 0.15);
+                gas = Math.Min(1.0, 0.2 + phase * 4);
+                steer = 0.03 * Math.Sin(t * 3);
             }
-            else if (mode < 0.9)
+            else if (phase < 0.55)                 // торможение
             {
-                brake = (float)(_random.NextDouble() * 0.8 + 0.2);
-                gas = 0;
-                steer = (float)(_random.NextDouble() * 0.2 - 0.1);
+                var k = (phase - 0.45) / 0.10;
+                brake = 1.0 - 0.6 * k;
+                steer = 0.15 * k;
             }
-        }
-        else
-        {
-            gas = 0;
-            brake = 0;
+            else if (phase < 0.75)                 // поворот
+            {
+                var k = (phase - 0.55) / 0.20;
+                gas = 0.15 + 0.7 * k;
+                steer = 0.75 * Math.Sin(Math.PI * k);
+            }
+            else                                   // выход и вторая прямая
+            {
+                gas = 1.0;
+                steer = -0.25 * Math.Sin((phase - 0.75) / 0.25 * Math.PI);
+            }
         }
 
         sample = new TelemetryReading(
-            _random.Next(),
-            gas,
-            brake,
+            ++_packetId,
+            (float)Math.Clamp(gas + (_random.NextDouble() - 0.5) * 0.02, 0, 1),
+            (float)Math.Clamp(brake + (_random.NextDouble() - 0.5) * 0.02, 0, 1),
             (float)Math.Round(steer, 4));
         OnSample?.Invoke(sample);
         return true;

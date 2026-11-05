@@ -101,9 +101,11 @@
           <TextBlock Text="{Binding PhaseText}" Classes="muted"/>
           <TextBlock Text="{Binding TimeText}" Foreground="#2962FF" FontWeight="Medium" FontSize="13"/>
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <TextBlock Text="{Binding OurDriverText}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED"/>
-          <Border Width="1" Height="20" Background="#2D3139" Margin="0,0,4,0"/>
+          <Border Width="1" Height="20" Background="#2D3139"/>
+          <TextBlock Text="Host:" Classes="muted" VerticalAlignment="Center"/>
+          <TextBox Width="120" PlaceholderText="127.0.0.1" Text="{Binding ServerAddress}"/>
           <TextBlock Text="{Binding ConnectionStatus}" Classes="muted"/>
           <Button Content="Connect" Command="{Binding ConnectCommand}" Classes="primary"/>
         </StackPanel>
@@ -242,39 +244,108 @@
           </Grid>
         </Panel>
 
-        <!-- PAGE 2 — TELEMETRY COMPARISON -->
+        <!-- PAGE 2 — LIVE TELEMETRY -->
         <Panel IsVisible="{Binding IsPage2}" Margin="16">
-          <Grid RowDefinitions="Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,100,Auto,100,*,Auto" ColumnSpacing="12">
-                <TextBlock Text="Driver 1" Classes="muted" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" Width="100" Text="{Binding ComparisonDriver1Index}" PlaceholderText="Index"/>
-                <TextBlock Grid.Column="2" Text="Driver 2" Classes="muted" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="3" Width="100" Text="{Binding ComparisonDriver2Index}" PlaceholderText="Index"/>
-                <Button Grid.Column="5" Content="Compare" Command="{Binding CompareDriversCommand}" Classes="primary"/>
+          <Grid RowDefinitions="Auto,Auto,*" RowSpacing="16">
+            <!-- Header -->
+            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,10">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="16">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="ТЕЛЕМЕТРИЯ" Classes="label"/>
+                  <TextBlock Text="{Binding TelemetryDriverName}" FontSize="15" FontWeight="Medium" Foreground="#E8EAED"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding TelemetryStatus}" FontSize="13" Foreground="#C8CACD" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding TelemetryRateText}" FontSize="13" Foreground="#C8CACD" VerticalAlignment="Center"/>
+                <Button Grid.Column="3" Content="Очистить" Command="{Binding ClearTelemetryCommand}" Classes="secondary"/>
               </Grid>
             </Border>
-            <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
-              <Grid ColumnDefinitions="*,16,*" Margin="16">
-                <!-- Driver 1 Stats -->
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                  <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding ComparisonDriver1Name}" Classes="h2"/>
-                    <Border Height="1" Background="#1F2229"/>
-                    <TextBlock Text="{Binding ComparisonDriver1Stats}" FontSize="13" Foreground="#C8CACD" TextWrapping="Wrap" LineHeight="20"/>
-                  </StackPanel>
+
+            <!-- Gauges Row -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="16">
+              <!-- Gas Gauge -->
+              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
+                <StackPanel>
+                  <TextBlock Text="ГАЗ" Classes="label" Foreground="#2EBD93"/>
+                  <TextBlock Text="{Binding GasText}" FontSize="32" FontWeight="Bold" Foreground="#2EBD93" Margin="0,8,0,0"/>
+                  <Border Height="8" Background="#2EBD93" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
+                </StackPanel>
+              </Border>
+
+              <!-- Brake Gauge -->
+              <Border Grid.Column="1" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
+                <StackPanel>
+                  <TextBlock Text="ТОРМОЗ" Classes="label" Foreground="#E84855"/>
+                  <TextBlock Text="{Binding BrakeText}" FontSize="32" FontWeight="Bold" Foreground="#E84855" Margin="0,8,0,0"/>
+                  <Border Height="8" Background="#E84855" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
+                </StackPanel>
+              </Border>
+
+              <!-- Steer Gauge -->
+              <Border Grid.Column="2" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
+                <StackPanel>
+                  <TextBlock Text="РУЛЬ" Classes="label" Foreground="#4FC3F7"/>
+                  <TextBlock Text="{Binding SteerText}" FontSize="32" FontWeight="Bold" Foreground="#4FC3F7" Margin="0,8,0,0"/>
+                  <Border Height="8" Background="#4FC3F7" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <!-- Charts -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,280" ColumnSpacing="16">
+              <StackPanel Spacing="16">
+                <!-- Pedals Chart -->
+                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="12,8">
+                  <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="ПЕДАЛИ" Classes="label"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="Газ" FontSize="12" Foreground="#2EBD93"/>
+                        <TextBlock Text="Тормоз" FontSize="12" Foreground="#E84855"/>
+                      </StackPanel>
+                    </Grid>
+                    <Canvas Grid.Row="1" x:Name="GasCanvas" Height="160" ClipToBounds="True" Background="Transparent" Margin="0,8,0,0"/>
+                  </Grid>
                 </Border>
 
-                <!-- Driver 2 Stats -->
-                <Border Grid.Column="2" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                  <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding ComparisonDriver2Name}" Classes="h2"/>
-                    <Border Height="1" Background="#1F2229"/>
-                    <TextBlock Text="{Binding ComparisonDriver2Stats}" FontSize="13" Foreground="#C8CACD" TextWrapping="Wrap" LineHeight="20"/>
-                  </StackPanel>
+                <!-- Steering Chart -->
+                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="12,8">
+                  <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="РУЛЬ" Classes="label"/>
+                      <TextBlock Grid.Column="1" Text="Угол, ±40°" FontSize="12" Foreground="#4FC3F7"/>
+                    </Grid>
+                    <Canvas Grid.Row="1" x:Name="SteerCanvas" Height="160" ClipToBounds="True" Background="Transparent" Margin="0,8,0,0"/>
+                  </Grid>
                 </Border>
-              </Grid>
-            </Border>
+              </StackPanel>
+
+              <!-- Stats Sidebar -->
+              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16">
+                <StackPanel Spacing="14">
+                  <TextBlock Text="СТАТИСТИКА" Classes="label"/>
+                  <StackPanel>
+                    <TextBlock Text="Средний газ" Classes="muted" FontSize="11"/>
+                    <TextBlock Text="{Binding TelemetryAvgGas}" FontSize="18" FontWeight="Bold" Foreground="#2EBD93"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Средний тормоз" Classes="muted" FontSize="11"/>
+                    <TextBlock Text="{Binding TelemetryAvgBrake}" FontSize="18" FontWeight="Bold" Foreground="#E84855"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Макс. угол руля" Classes="muted" FontSize="11"/>
+                    <TextBlock Text="{Binding TelemetryMaxSteer}" FontSize="18" FontWeight="Bold" Foreground="#4FC3F7"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Время на тормозе" Classes="muted" FontSize="11"/>
+                    <TextBlock Text="{Binding TelemetryBrakeTime}" FontSize="18" FontWeight="Bold" Foreground="#C8CACD"/>
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock Text="Полный газ" Classes="muted" FontSize="11"/>
+                    <TextBlock Text="{Binding TelemetryFullThrottleTime}" FontSize="18" FontWeight="Bold" Foreground="#C8CACD"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </Grid>
           </Grid>
         </Panel>
 
@@ -284,25 +355,20 @@
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
               <StackPanel Spacing="6">
                 <TextBlock Text="Real-Time Radar" Classes="h2"/>
-                <TextBlock Text="Shows cars around your position" Classes="muted"/>
+                <TextBlock Text="Shows cars around your position (60m range)" Classes="muted"/>
               </StackPanel>
             </Border>
             <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
-              <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                  <StackPanel Spacing="16">
-                    <TextBlock Text="RADAR VIEW" Classes="label" HorizontalAlignment="Center"/>
-                    <Canvas x:Name="RadarCanvas" Width="340" Height="340" Background="#0A0C10"/>
-                    <TextBlock Text="Your car is shown in blue in the center" FontSize="12" Foreground="#70757A" HorizontalAlignment="Center"/>
-                  </StackPanel>
-                </Border>
-              </Grid>
+              <Panel>
+                <Canvas x:Name="RadarCanvas" Background="#0A0C10"/>
+                <TextBlock x:Name="RadarStatus" Foreground="#70757A" FontSize="12" Margin="16" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+              </Panel>
             </Border>
           </Grid>
         </Panel>
 
         <!-- PAGE 4 — SETUP -->
-        <Panel IsVisible="{Binding IsPage4}" Margin="16">
+        <Panel IsVisible="{Binding IsPage5}" Margin="16">
           <Grid RowDefinitions="Auto,Auto,*">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
               <Grid ColumnDefinitions="Auto,200,Auto,220,*,Auto,Auto" ColumnSpacing="12">
@@ -389,7 +455,7 @@
         </Panel>
 
         <!-- PAGE 5 — MAP -->
-        <Panel IsVisible="{Binding IsPage5}" Margin="16">
+        <Panel IsVisible="{Binding IsPage4}" Margin="16">
           <Grid ColumnDefinitions="*,240">
             <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
               <Grid RowDefinitions="Auto,*">

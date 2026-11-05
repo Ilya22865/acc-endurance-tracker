@@ -31,6 +31,10 @@ public sealed class CarStateDto
 
     public bool IsOurCar { get; set; }
 
+    // Мировые координаты машины (метры) — нужны радару для расчёта положения соперников.
+    public double WorldX { get; set; }
+    public double WorldY { get; set; }
+
     // Все поля — значения/строки, поэтому поверхностной копии достаточно.
     public CarStateDto Clone() => (CarStateDto)MemberwiseClone();
 }
@@ -41,6 +45,8 @@ public sealed class RealtimeStateDto
     public string Phase { get; set; } = "";
     public TimeSpan SessionTime { get; set; }
     public TimeSpan SessionEndTime { get; set; }
+    /// <summary>Оставшееся время сессии (считается сервером, см. SessionStateService).</summary>
+    public TimeSpan RemainingTime { get; set; }
     public TimeSpan TimeOfDay { get; set; }
     public byte AmbientTemp { get; set; }
     public byte TrackTemp { get; set; }
@@ -80,6 +86,14 @@ public sealed class TelemetrySampleDto
     public float Gas { get; set; }
     public float Brake { get; set; }
     public float SteerAngle { get; set; }
+}
+
+/// <summary>Пачка сэмплов телеметрии, которую сервер сразу рассылает клиентам по SignalR.</summary>
+public sealed class TelemetryBatchDto
+{
+    public string Driver { get; set; } = "";
+    public int DriverIndex { get; set; }
+    public List<TelemetrySampleDto> Samples { get; set; } = new();
 }
 
 public sealed class DriverDto
