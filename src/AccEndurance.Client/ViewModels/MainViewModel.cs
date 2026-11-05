@@ -455,6 +455,12 @@ public sealed partial class MainViewModel : ObservableObject
         var our = snapshot.Cars.FirstOrDefault(c => c.IsOurCar);
         OurDriverText = our != null ? $"{our.RaceNumber} · {our.Driver} · P{our.Position} · {our.Laps} laps" : "—";
 
+        // Автоматически устанавливаем DriverIndex для агента из текущей машины
+        if (our != null && SelectedDriverIndex != our.CarIndex)
+        {
+            SelectedDriverIndex = our.CarIndex;
+        }
+
         LastUpdate = DateTime.Now.ToString("HH:mm:ss");
         }
         catch (Exception ex)
