@@ -372,7 +372,7 @@ public sealed partial class MainViewModel : ObservableObject
         HubClient? hub = null;
         try
         {
-            var url = $"http://{ServerAddress}:5000";
+            var url = $"http://{ServerAddress}:5261";
             _api = new ApiClient(url);
             var initial = await _api.GetSnapshotAsync();
             if (initial == null)

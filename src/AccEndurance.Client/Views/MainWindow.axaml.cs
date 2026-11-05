@@ -39,6 +39,13 @@ public partial class MainWindow : Window
 
         _radarCanvas = this.FindControl<Canvas>("RadarCanvas");
         _radarStatus = this.FindControl<TextBlock>("RadarStatus");
+        if (_radarCanvas != null)
+        {
+            _radarCanvas.SizeChanged += (_, _) =>
+            {
+                if (DataContext is ViewModels.MainViewModel vm) RenderRadar(vm);
+            };
+        }
 
         var gas = this.FindControl<Canvas>("GasCanvas");
         var brake = this.FindControl<Canvas>("BrakeCanvas");
