@@ -41,6 +41,10 @@ public sealed class EmbeddedAgentService : IDisposable
                 return false;
             }
 
+            // Старые агенты могли остаться после аварийного закрытия клиента.
+            // Они продолжают отправлять телеметрию и дублируют данные.
+            await StopStaleAgentProcessesAsync();
+
             AddLog($"🚀 Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}, FakeData={useFakeData}");
 
             var args = $"--server {serverUrl} --driver-index {driverIndex}";
@@ -107,11 +111,16 @@ public sealed class EmbeddedAgentService : IDisposable
         }
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(bool stopStaleProcesses = false)
     {
-        if (_agentProcess == null || !_isRunning)
+        if (stopStaleProcesses)
+            await StopStaleAgentProcessesAsync();
+
+        if (_agentProcess == null || _agentProcess.HasExited)
         {
+            _isRunning = false;
             AddLog("Agent не запущен");
+            OnStateChanged?.Invoke(false);
             return;
         }
 
@@ -122,12 +131,18 @@ public sealed class EmbeddedAgentService : IDisposable
             if (!_agentProcess.HasExited)
             {
                 _agentProcess.Kill(entireProcessTree: true);
-                await _agentProcess.WaitForExitAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _agentProcess.WaitForExitAsync(timeout.Token);
             }
 
             _isRunning = false;
             AddLog("🛑 Agent остановлен");
             OnStateChanged?.Invoke(false);
+        }
+        catch (OperationCanceledException)
+        {
+            AddLog("⚠️ Agent не завершился за 5 секунд");
+            _logger.LogWarning("Timed out waiting for embedded agent process to exit");
         }
         catch (Exception ex)
         {
@@ -138,6 +153,45 @@ public sealed class EmbeddedAgentService : IDisposable
         {
             _agentProcess?.Dispose();
             _agentProcess = null;
+        }
+    }
+
+    private async Task StopStaleAgentProcessesAsync()
+    {
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName("AccEndurance.Agent");
+        }
+        catch (Exception ex)
+        {
+            AddLog($"⚠️ Не удалось проверить старые процессы Agent: {ex.Message}");
+            _logger.LogWarning(ex, "Failed to enumerate stale agent processes");
+            return;
+        }
+
+        foreach (var process in processes)
+        {
+            try
+            {
+                if (process.HasExited || (_agentProcess != null && process.Id == _agentProcess.Id))
+                    continue;
+
+                AddLog($"⚠️ Найден старый процесс Agent (PID {process.Id}), останавливаю...");
+                process.Kill(entireProcessTree: true);
+
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"⚠️ Не удалось остановить старый Agent (PID {process.Id}): {ex.Message}");
+                _logger.LogWarning(ex, "Failed to stop stale agent process {Pid}", process.Id);
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
     }
 

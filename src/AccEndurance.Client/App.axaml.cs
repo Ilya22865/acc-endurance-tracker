@@ -21,7 +21,11 @@ public partial class App : Application
             var address = GetServerAddress().Trim().TrimEnd('/');
             // в server.url обычно уже лежит "http://host:port"; раньше всегда добавлялось ещё одно "http://"
             var baseUrl = address.Contains("://") ? address : $"http://{address}";
-            var mainWindow = new MainWindow { DataContext = new MainViewModel(baseUrl) };
+            var viewModel = new MainViewModel(baseUrl);
+            var mainWindow = new MainWindow { DataContext = viewModel };
+
+            // Не оставляем Server/Agent работать после закрытия клиента.
+            desktop.Exit += (_, _) => viewModel.Shutdown();
 
             // Автоматическое обновление в фоне (только для Velopack установок)
             mainWindow.Opened += async (_, _) =>

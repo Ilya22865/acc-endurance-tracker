@@ -41,6 +41,11 @@ public sealed class EmbeddedServerService : IDisposable
                 return false;
             }
 
+            // После аварийного закрытия клиента сервер может остаться работать
+            // отдельным процессом и держать порт 5261. Останавливаем такие процессы,
+            // иначе новый сервер упадёт с "address already in use".
+            await StopStaleServerProcessesAsync();
+
             AddLog($"🚀 Запуск сервера: {serverExePath}");
 
             var startInfo = new ProcessStartInfo
@@ -89,8 +94,18 @@ public sealed class EmbeddedServerService : IDisposable
             AddLog("✅ Сервер запущен");
             OnStateChanged?.Invoke(true);
 
-            // Даём серверу время на старт
-            await Task.Delay(1000);
+            // Даём серверу время на старт и проверяем, что он не упал сразу.
+            // Типичная причина мгновенного выхода — занятый порт 5261
+            // (например, сервер запущен из другой папки или остался от прошлого запуска).
+            await Task.Delay(1500);
+
+            if (_serverProcess != null && _serverProcess.HasExited)
+            {
+                _isRunning = false;
+                AddLog("❌ Сервер завершился сразу после запуска.");
+                AddLog("   Проверьте, не занят ли порт 5261 другой программой или старым экземпляром сервера.");
+                return false;
+            }
 
             return true;
         }
@@ -102,11 +117,16 @@ public sealed class EmbeddedServerService : IDisposable
         }
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(bool stopStaleProcesses = false)
     {
-        if (_serverProcess == null || !_isRunning)
+        if (stopStaleProcesses)
+            await StopStaleServerProcessesAsync();
+
+        if (_serverProcess == null || _serverProcess.HasExited)
         {
+            _isRunning = false;
             AddLog("Сервер не запущен");
+            OnStateChanged?.Invoke(false);
             return;
         }
 
@@ -117,12 +137,18 @@ public sealed class EmbeddedServerService : IDisposable
             if (!_serverProcess.HasExited)
             {
                 _serverProcess.Kill(entireProcessTree: true);
-                await _serverProcess.WaitForExitAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _serverProcess.WaitForExitAsync(timeout.Token);
             }
 
             _isRunning = false;
             AddLog("🛑 Сервер остановлен");
             OnStateChanged?.Invoke(false);
+        }
+        catch (OperationCanceledException)
+        {
+            AddLog("⚠️ Сервер не завершился за 5 секунд");
+            _logger.LogWarning("Timed out waiting for embedded server process to exit");
         }
         catch (Exception ex)
         {
@@ -133,6 +159,45 @@ public sealed class EmbeddedServerService : IDisposable
         {
             _serverProcess?.Dispose();
             _serverProcess = null;
+        }
+    }
+
+    private async Task StopStaleServerProcessesAsync()
+    {
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName("AccEndurance.Server");
+        }
+        catch (Exception ex)
+        {
+            AddLog($"⚠️ Не удалось проверить старые процессы сервера: {ex.Message}");
+            _logger.LogWarning(ex, "Failed to enumerate stale server processes");
+            return;
+        }
+
+        foreach (var process in processes)
+        {
+            try
+            {
+                if (process.HasExited || (_serverProcess != null && process.Id == _serverProcess.Id))
+                    continue;
+
+                AddLog($"⚠️ Найден старый процесс сервера (PID {process.Id}), останавливаю...");
+                process.Kill(entireProcessTree: true);
+
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (Exception ex)
+            {
+                AddLog($"⚠️ Не удалось остановить старый сервер (PID {process.Id}): {ex.Message}");
+                _logger.LogWarning(ex, "Failed to stop stale server process {Pid}", process.Id);
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
     }
 

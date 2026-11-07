@@ -283,7 +283,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task StopServerAsync()
     {
-        await (_embeddedServer?.StopAsync() ?? Task.CompletedTask);
+        // stopStaleProcesses: true — на случай, если после прошлого аварийного
+        // закрытия остался сервер, который держит порт 5261.
+        await (_embeddedServer?.StopAsync(stopStaleProcesses: true) ?? Task.CompletedTask);
     }
 
     private async Task StartAgentAsync()
@@ -298,7 +300,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task StopAgentAsync()
     {
-        await (_embeddedAgent?.StopAsync() ?? Task.CompletedTask);
+        // Останавливаем и «осиротевшие» агенты прошлых запусков,
+        // иначе они продолжают присылать телеметрию параллельно с новым.
+        await (_embeddedAgent?.StopAsync(stopStaleProcesses: true) ?? Task.CompletedTask);
     }
 
     private async Task CheckForUpdatesAsync()
@@ -1117,6 +1121,33 @@ public sealed partial class MainViewModel : ObservableObject
     private static string FormatDuration(DateTime end, DateTime start) => (end - start).ToString(@"h\:mm\:ss");
 
     private bool _settingsLoaded;
+
+    /// <summary>
+    /// Останавливает дочерние процессы при закрытии клиента, чтобы Server не оставался
+    /// висеть в фоне и не занимал порт 5261.
+    /// </summary>
+    public void Shutdown()
+    {
+        try
+        {
+            _embeddedAgent?.StopAsync(stopStaleProcesses: true).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Shutdown agent failed: " + ex.Message);
+        }
+
+        try
+        {
+            _embeddedServer?.StopAsync(stopStaleProcesses: true).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Shutdown server failed: " + ex.Message);
+        }
+
+        _autoSaveService?.Dispose();
+    }
 
     private void SaveSettings()
     {
