@@ -19,14 +19,17 @@ jobs:
             rid: win-x64
             channel: win
             main_exe: AccEndurance.Client.exe
+            bundle_services: true
           - os: ubuntu-latest
             rid: linux-x64
             channel: linux
             main_exe: AccEndurance.Client
+            bundle_services: false
           - os: macos-latest
             rid: osx-arm64
             channel: osx
             main_exe: AccEndurance.Client
+            bundle_services: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +57,31 @@ jobs:
           -p:Version=${{ env.RELEASE_VERSION }}
           --output ./publish
 
+      - name: Publish embedded Server and Agent
+        if: matrix.bundle_services
+        shell: bash
+        run: |
+          dotnet publish src/AccEndurance.Server/AccEndurance.Server.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:Version=${{ env.RELEASE_VERSION }} \
+            --output ./publish/Server
+
+          dotnet publish src/AccEndurance.Agent/AccEndurance.Agent.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:Version=${{ env.RELEASE_VERSION }} \
+            --output ./publish/Agent
+
+      - name: Verify embedded services
+        if: matrix.bundle_services
+        shell: bash
+        run: |
+          test -f ./publish/Server/AccEndurance.Server.exe
+          test -f ./publish/Agent/AccEndurance.Agent.exe
+
       - name: Create installer and update feed
         run: >-
           vpk pack
@@ -61,6 +89,7 @@ jobs:
           --packVersion ${{ env.RELEASE_VERSION }}
           --packDir ./publish
           --mainExe ${{ matrix.main_exe }}
+          --runtime ${{ matrix.rid }}
           --channel ${{ matrix.channel }}
           --packTitle AccEndurance
           --outputDir ./releases

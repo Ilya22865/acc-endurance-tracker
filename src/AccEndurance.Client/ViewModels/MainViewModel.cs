@@ -83,9 +83,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _serverLogs = "";
     [ObservableProperty] private string _agentLogs = "";
     [ObservableProperty] private int _selectedDriverIndex;
-    [ObservableProperty] private string _serverExePath = "";
-    [ObservableProperty] private string _agentExePath = "";
     [ObservableProperty] private bool _agentUseFakeData;
+
+    // Пути к встроенным Server и Agent фиксированы относительно папки приложения.
+    public string ServerExePath => EmbeddedServicePaths.ServerExePath;
+    public string AgentExePath => EmbeddedServicePaths.AgentExePath;
 
     // Live telemetry (страница «Телеметрия»)
     public Services.TelemetryBuffer Telemetry { get; } = new();
@@ -179,9 +181,6 @@ public sealed partial class MainViewModel : ObservableObject
         ClearTelemetryCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => Telemetry.Clear());
         RefreshTeamDriversCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadTeamDriversAsync);
 
-        // Попытка найти Server и Agent рядом с клиентом
-        TryLocateServerAndAgent();
-
         try
         {
             var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => { });
@@ -270,27 +269,6 @@ public sealed partial class MainViewModel : ObservableObject
         {
             DebugLog.Write($"Failed to init embedded services: {ex}");
         }
-    }
-
-    private void TryLocateServerAndAgent()
-    {
-        var appDir = AppContext.BaseDirectory;
-        var serverCandidates = new[]
-        {
-            Path.Combine(appDir, "Server", "AccEndurance.Server.exe"),
-            Path.Combine(Path.GetDirectoryName(appDir) ?? "", "Server", "AccEndurance.Server.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "ACC-Endurance-win-x64", "Server", "AccEndurance.Server.exe"),
-        };
-
-        var agentCandidates = new[]
-        {
-            Path.Combine(appDir, "Agent", "AccEndurance.Agent.exe"),
-            Path.Combine(Path.GetDirectoryName(appDir) ?? "", "Agent", "AccEndurance.Agent.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "ACC-Endurance-win-x64", "Agent", "AccEndurance.Agent.exe"),
-        };
-
-        ServerExePath = serverCandidates.FirstOrDefault(File.Exists) ?? "";
-        AgentExePath = agentCandidates.FirstOrDefault(File.Exists) ?? "";
     }
 
     private async Task StartServerAsync()

@@ -27,12 +27,16 @@ Download the matching first-install artifact from the GitHub Release:
 - macOS: `AccEndurance-osx.pkg`
 - Linux: `AccEndurance-linux.AppImage` (mark it executable if your file manager does not do so automatically)
 
+On Windows the installer is a one-click per-user installer. It installs the whole application into the dedicated folder `%LOCALAPPDATA%\AccEndurance-win\current` and bundles the desktop client together with `Server\AccEndurance.Server.exe` and `Agent\AccEndurance.Agent.exe`. The client always resolves those two executables from that installation folder, so users never have to choose paths manually. To install somewhere else, run `AccEndurance-win-Setup.exe --installto "D:\Apps\AccEndurance"`; the fixed relative paths keep working because they are resolved from the client's own directory.
+
 Linux does not have a traditional setup wizard in Velopack; its AppImage is self-updating. macOS package installation and subsequent updates require code signing and notarization for a smooth Gatekeeper experience. Windows signing is strongly recommended to reduce SmartScreen warnings.
+
+The Linux and macOS packages currently contain the desktop client only.
 
 ## Important notes
 
 - Automatic updates work only for installations made with the Velopack packages. Running from Visual Studio or launching a manually copied publish folder does not self-update.
 - Keep the GitHub repository public for this anonymous-client setup. GitHub anonymous API access is limited to 60 requests/hour per IP; for a large audience sharing a NAT, consider a dedicated update host or a secure proxy. Do not embed a personal access token in the client.
 - `server.url` is migrated from beside the executable into the user's per-OS application-data folder. Keep user data and databases outside the Velopack application directory.
-- This workflow packages the **desktop client** only. The ASP.NET server, database, Agent, and Broadcaster have their own deployment lifecycle and are not updated by the desktop updater.
+- This workflow bundles the desktop client, the ASP.NET server, and the Agent into the Windows installer. The database still has its own deployment lifecycle, and Linux/macOS packages contain the desktop client only.
 - macOS packages must be built on a macOS runner. The current workflow targets Apple Silicon (`osx-arm64`); add a separate Intel (`osx-x64`) build if Intel Macs must be supported.

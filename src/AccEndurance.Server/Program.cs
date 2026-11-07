@@ -7,6 +7,29 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Пользовательские настройки сервера хранятся вне папки установки: Velopack
+// целиком заменяет current при обновлении, поэтому appsettings.json рядом с exe
+// не подходит для правок пользователя.
+var userDataDir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "AccEndurance");
+var userSettingsPath = Path.Combine(userDataDir, "server.appsettings.json");
+var bundledSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+
+try
+{
+    Directory.CreateDirectory(userDataDir);
+    if (!File.Exists(userSettingsPath) && File.Exists(bundledSettingsPath))
+        File.Copy(bundledSettingsPath, userSettingsPath);
+}
+catch
+{
+    // Если создать файл настроек не удалось, сервер продолжит работать
+    // с настройками по умолчанию из appsettings.json рядом с exe.
+}
+
+builder.Configuration.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: false);
+
 var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AccEndurance", "logs");
 try
 {

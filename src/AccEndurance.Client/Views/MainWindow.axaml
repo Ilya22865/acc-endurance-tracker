@@ -668,7 +668,8 @@
               <TextBlock Classes="h2" Text="Сервер"/>
               <Border Classes="chip" Classes.ok="{Binding IsServerRunning}"><TextBlock Text="{Binding ServerStatus}"/></Border>
             </StackPanel>
-            <TextBox Grid.Column="1" PlaceholderText="Путь к AccEndurance.Server.exe" Text="{Binding ServerExePath}"/>
+            <TextBlock Grid.Column="1" Classes="muted" FontSize="12" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" Text="{Binding ServerExePath}"/>
             <Button Grid.Column="2" Content="Запустить" Command="{Binding StartServerCommand}" Classes="primary" IsEnabled="{Binding !IsServerRunning}"/>
             <Button Grid.Column="3" Content="Остановить" Command="{Binding StopServerCommand}" IsEnabled="{Binding IsServerRunning}"/>
           </Grid>
@@ -689,7 +690,8 @@
               <TextBlock Classes="h2" Text="Агент"/>
               <Border Classes="chip" Classes.ok="{Binding IsAgentRunning}"><TextBlock Text="{Binding AgentStatus}"/></Border>
             </StackPanel>
-            <TextBox Grid.Column="1" PlaceholderText="Путь к AccEndurance.Agent.exe" Text="{Binding AgentExePath}"/>
+            <TextBlock Grid.Column="1" Classes="muted" FontSize="12" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" Text="{Binding AgentExePath}"/>
             <Button Grid.Column="2" Content="Запустить" Command="{Binding StartAgentCommand}" Classes="primary" IsEnabled="{Binding !IsAgentRunning}"/>
             <Button Grid.Column="3" Content="Остановить" Command="{Binding StopAgentCommand}" IsEnabled="{Binding IsAgentRunning}"/>
           </Grid>
