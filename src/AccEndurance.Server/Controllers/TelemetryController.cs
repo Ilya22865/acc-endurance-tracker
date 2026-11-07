@@ -31,17 +31,34 @@ public sealed class TelemetryController : ControllerBase
     public async Task<IActionResult> ReceiveBatch([FromBody] AgentBatchRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DriverId)) return BadRequest("driverId required");
-        if (request.Samples == null || request.Samples.Count == 0) return Ok(new { accepted = 0 });
 
-        var readings = request.Samples
+        var readings = (request.Samples ?? new List<AgentSample>())
             .Select(s => (s.Gas, s.Brake, s.SteerAngle))
             .ToList();
 
+        // Пустая пачка тоже проходит проверку регистрации — агент шлёт «только флаги» даже когда ACC на паузе
         var result = _sessionState.AcceptTelemetryBatch(request.DriverId, readings);
 
         // 409 — сигнал агенту, что регистрация потеряна (например, сервер перезапустили): нужно зарегистрироваться заново
         if (!result.Registered)
             return StatusCode(StatusCodes.Status409Conflict, new { error = "agent not registered" });
+
+        if (request.Flags != null)
+        {
+            _sessionState.UpdateAgentFlags(request.DriverId, new AgentFlagsState
+            {
+                Status = request.Flags.Status,
+                PlayerFlag = request.Flags.PlayerFlag,
+                Yellow = request.Flags.Yellow,
+                Yellow1 = request.Flags.Yellow1,
+                Yellow2 = request.Flags.Yellow2,
+                Yellow3 = request.Flags.Yellow3,
+                White = request.Flags.White,
+                Green = request.Flags.Green,
+                Chequered = request.Flags.Chequered,
+                Red = request.Flags.Red,
+            });
+        }
 
         // «живая» телеметрия — сразу всем клиентам
         if (result.Samples.Count > 0)
@@ -73,6 +90,21 @@ public sealed class TelemetryController : ControllerBase
     {
         public string DriverId { get; set; } = "";
         public List<AgentSample>? Samples { get; set; }
+        public AgentFlags? Flags { get; set; }
+    }
+
+    public sealed class AgentFlags
+    {
+        public int Status { get; set; }
+        public int PlayerFlag { get; set; }
+        public bool Yellow { get; set; }
+        public bool Yellow1 { get; set; }
+        public bool Yellow2 { get; set; }
+        public bool Yellow3 { get; set; }
+        public bool White { get; set; }
+        public bool Green { get; set; }
+        public bool Chequered { get; set; }
+        public bool Red { get; set; }
     }
 
     public sealed class AgentSample

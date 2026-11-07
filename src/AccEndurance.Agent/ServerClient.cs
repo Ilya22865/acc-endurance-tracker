@@ -46,14 +46,19 @@ public sealed class ServerClient : IDisposable
         }
     }
 
-    /// <summary>true — сервер принял пачку; false — ошибка сети или сервер не знает агента (нужна повторная регистрация).</summary>
-    public async Task<bool> SendBatchAsync(IReadOnlyList<TelemetryReading> readings, string driverId, CancellationToken ct = default)
-    {
-        if (readings.Count == 0) return true;
+    private DateTime _lastWarn = DateTime.MinValue;
 
+    /// <summary>true — сервер принял пачку; false — ошибка сети или сервер не знает агента (нужна повторная регистрация).</summary>
+    public async Task<bool> SendBatchAsync(IReadOnlyList<TelemetryReading> readings, FlagReading? flags, CancellationToken ct = default)
+    {
+        if (readings.Count == 0 && flags == null) return true;
+
+        // DriverId на сервере — это тот же AgentId, под которым агент зарегистрировался.
+        // Раньше здесь уходило «AgentId:DriverIndex», сервер не находил регистрацию и отвечал 409 на каждую пачку —
+        // поэтому телеметрия до клиента не доходила.
         var payload = new
         {
-            DriverId = driverId,
+            DriverId = _agentId,
             Samples = readings.Select(r => new
             {
                 r.PacketId,
@@ -61,11 +66,31 @@ public sealed class ServerClient : IDisposable
                 r.Brake,
                 r.SteerAngle,
             }).ToList(),
+            Flags = flags is FlagReading f
+                ? new
+                {
+                    f.Status,
+                    f.PlayerFlag,
+                    f.Yellow,
+                    f.Yellow1,
+                    f.Yellow2,
+                    f.Yellow3,
+                    f.White,
+                    f.Green,
+                    f.Chequered,
+                    f.Red,
+                }
+                : null,
         };
 
         try
         {
             using var response = await _http.PostAsJsonAsync($"{_baseUrl}/api/telemetry/batch", payload, ct);
+            if (!response.IsSuccessStatusCode && DateTime.UtcNow - _lastWarn > TimeSpan.FromSeconds(10))
+            {
+                _lastWarn = DateTime.UtcNow;
+                Console.WriteLine($"[warn] Сервер ответил {(int)response.StatusCode} {response.StatusCode} на отправку телеметрии");
+            }
             return response.IsSuccessStatusCode;
         }
         catch (HttpRequestException ex)

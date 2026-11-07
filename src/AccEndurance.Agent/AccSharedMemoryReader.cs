@@ -9,12 +9,20 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
 {
     private MemoryMappedFile? _physics;
     private MemoryMappedViewAccessor? _view;
+    private MemoryMappedFile? _graphics;
+    private MemoryMappedViewAccessor? _graphicsView;
     private readonly object _lock = new();
 
     private const int PacketIdOffset = 0;
     private const int GasOffset = 4;
     private const int BrakeOffset = 8;
     private const int SteerAngleOffset = 24;
+
+    // Смещения в SPageFileGraphic (ACC, pack(4)): status — 4, flag игрока — 1224, глобальные флаги — с 1548.
+    private const int GStatusOffset = 4;
+    private const int GPlayerFlagOffset = 1224;
+    private const int GGlobalYellowOffset = 1548;   // yellow, yellow1, yellow2, yellow3, white, green, chequered, red
+    private const int GMinCapacity = GGlobalYellowOffset + 8 * 4;
 
     public event Action<TelemetryReading>? OnSample;
 
@@ -36,6 +44,67 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
         {
             _physics = null;
             _view = null;
+        }
+    }
+
+    private void AttachGraphics()
+    {
+        try
+        {
+            _graphicsView?.Dispose();
+            _graphics?.Dispose();
+            _graphics = MemoryMappedFile.OpenExisting(@"Local\acpmf_graphics");
+            _graphicsView = _graphics.CreateViewAccessor();
+        }
+        catch (FileNotFoundException)
+        {
+            _graphics = null;
+            _graphicsView = null;
+        }
+    }
+
+    /// <summary>Флаги читаются осторожно: если значения выглядят неправдоподобно (другая версия ACC), флаги не отдаём.</summary>
+    public bool TryReadFlags(out FlagReading flags)
+    {
+        flags = default;
+        var view = _graphicsView;
+        if (view == null)
+        {
+            AttachGraphics();
+            view = _graphicsView;
+            if (view == null) return false;
+        }
+
+        lock (_lock)
+        {
+            try
+            {
+                if (view.Capacity < GMinCapacity) return false;
+
+                var status = view.ReadInt32(GStatusOffset);
+                var playerFlag = view.ReadInt32(GPlayerFlagOffset);
+                if (status < 0 || status > 3) return false;
+                if (playerFlag < 0 || playerFlag > 8) playerFlag = 0;
+
+                var g = new bool[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    var v = view.ReadInt32(GGlobalYellowOffset + i * 4);
+                    if (v != 0 && v != 1) return false;
+                    g[i] = v == 1;
+                }
+
+                flags = new FlagReading(status, playerFlag, g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7]);
+                return true;
+            }
+            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException)
+            {
+                _graphicsView?.Dispose();
+                _graphics?.Dispose();
+                _graphicsView = null;
+                _graphics = null;
+                return false;
+            }
         }
     }
 
@@ -81,6 +150,10 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
 
     public void Dispose()
     {
+        _graphicsView?.Dispose();
+        _graphics?.Dispose();
+        _graphicsView = null;
+        _graphics = null;
         _view?.Dispose();
         _physics?.Dispose();
         _view = null;

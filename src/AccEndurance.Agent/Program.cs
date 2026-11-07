@@ -1,4 +1,4 @@
-﻿using AccEndurance.Agent;
+using AccEndurance.Agent;
 
 var options = ParseArgs(args);
 
@@ -98,7 +98,9 @@ try
 
         if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
         {
-            var sent = await client.SendBatchAsync(batch, driverId, cts.Token);
+            // флаги отправляем с каждой пачкой, даже пустой (ACC на паузе / в меню — сэмплов нет, флаги нужны)
+            FlagReading? flags = source.TryReadFlags(out var fr) ? fr : null;
+            var sent = await client.SendBatchAsync(batch, flags, cts.Token);
             batch.Clear();
             lastFlush = DateTime.UtcNow;
 

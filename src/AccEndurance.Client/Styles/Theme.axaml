@@ -1,0 +1,43 @@
+<!-- Цвета и шрифты приложения. Цвет несёт смысл и одинаков на всех экранах:
+     Own — наша машина, Best — лучший круг сессии, Good — личный лучший / норма,
+     Warn — внимание / боксы, Danger — опасность / тормоз, Info — руль / справочное.
+     Такие же значения лежат в Palette.cs (для графиков, радара и карты, которые рисуются из кода). -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <SolidColorBrush x:Key="BgBrush" Color="#151922"/>
+  <SolidColorBrush x:Key="RailBrush" Color="#10141B"/>
+  <SolidColorBrush x:Key="SurfaceBrush" Color="#1C222E"/>
+  <SolidColorBrush x:Key="Surface2Brush" Color="#252D3B"/>
+  <SolidColorBrush x:Key="Surface3Brush" Color="#2F394B"/>
+  <SolidColorBrush x:Key="LineBrush" Color="#2C3444"/>
+  <SolidColorBrush x:Key="LineStrongBrush" Color="#3D485C"/>
+
+  <SolidColorBrush x:Key="TextBrush" Color="#EAEEF5"/>
+  <SolidColorBrush x:Key="Text2Brush" Color="#A6B0C3"/>
+  <SolidColorBrush x:Key="Text3Brush" Color="#748096"/>
+
+  <SolidColorBrush x:Key="OwnBrush" Color="#FF6B4A"/>
+  <SolidColorBrush x:Key="OwnSoftBrush" Color="#22FF6B4A"/>
+  <SolidColorBrush x:Key="OnOwnBrush" Color="#1B0E09"/>
+  <SolidColorBrush x:Key="BestBrush" Color="#C084FC"/>
+  <SolidColorBrush x:Key="GoodBrush" Color="#34D399"/>
+  <SolidColorBrush x:Key="GoodSoftBrush" Color="#2434D399"/>
+  <SolidColorBrush x:Key="WarnBrush" Color="#FFC247"/>
+  <SolidColorBrush x:Key="WarnSoftBrush" Color="#26FFC247"/>
+  <SolidColorBrush x:Key="DangerBrush" Color="#FF4D6D"/>
+  <SolidColorBrush x:Key="DangerSoftBrush" Color="#26FF4D6D"/>
+  <SolidColorBrush x:Key="InfoBrush" Color="#5AA9FF"/>
+  <SolidColorBrush x:Key="InfoSoftBrush" Color="#245AA9FF"/>
+
+  <SolidColorBrush x:Key="FlagGreenBrush" Color="#2FD07A"/>
+  <SolidColorBrush x:Key="FlagYellowBrush" Color="#FFC247"/>
+  <SolidColorBrush x:Key="FlagRedBrush" Color="#FF4D6D"/>
+  <SolidColorBrush x:Key="FlagWhiteBrush" Color="#F2F4F8"/>
+
+  <!-- Bahnschrift есть в Windows 10+ (узкий «гоночный» шрифт для цифр); если нет — Consolas -->
+  <FontFamily x:Key="NumFont">Bahnschrift, Consolas, Segoe UI</FontFamily>
+
+  <CornerRadius x:Key="RadiusCard">12</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">8</CornerRadius>
+</ResourceDictionary>

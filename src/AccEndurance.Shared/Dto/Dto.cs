@@ -35,6 +35,30 @@ public sealed class CarStateDto
     public double WorldX { get; set; }
     public double WorldY { get; set; }
 
+    /// <summary>Угол рыскания из ACC (рад). Справочно; курс для радара считается по движению (HeadingX/Y).</summary>
+    public double Yaw { get; set; }
+
+    /// <summary>Единичный вектор курса машины в мировых координатах (по движению). (0;0) — пока неизвестен.</summary>
+    public double HeadingX { get; set; }
+    public double HeadingY { get; set; }
+
+    public bool InPit => Location == CarLocation.Pitlane || Location == CarLocation.PitEntry || Location == CarLocation.PitExit;
+
+    // --- отрывы (только в гонке; считаются сервером по времени прохождения одних и тех же точек трассы) ---
+    /// <summary>Отрыв до лидера, с. null — отстаёт на круг и более или данных пока нет.</summary>
+    public double? GapToLeaderSec { get; set; }
+    /// <summary>Сколько полных кругов потеряно относительно лидера.</summary>
+    public int GapToLeaderLaps { get; set; }
+    /// <summary>Интервал до машины впереди (по позиции в гонке), с.</summary>
+    public double? IntervalAheadSec { get; set; }
+    public int IntervalAheadLaps { get; set; }
+    /// <summary>Интервал до машины позади, с.</summary>
+    public double? IntervalBehindSec { get; set; }
+    /// <summary>Отрыв до НАШЕЙ машины, с. Больше 0 — соперник впереди нас, меньше 0 — позади.</summary>
+    public double? GapToOurSec { get; set; }
+    /// <summary>Разница в полных кругах с нашей машиной (знак как у GapToOurSec).</summary>
+    public int GapToOurLaps { get; set; }
+
     // Все поля — значения/строки, поэтому поверхностной копии достаточно.
     public CarStateDto Clone() => (CarStateDto)MemberwiseClone();
 }
@@ -56,6 +80,24 @@ public sealed class RealtimeStateDto
     public int? BestSessionLapMs { get; set; }
     public int TrackMeters { get; set; }
     public string TrackName { get; set; } = "";
+
+    /// <summary>Гонка (отрывы показываются только в ней).</summary>
+    public bool IsRace { get; set; }
+    /// <summary>Во сколько раз часы сессии ACC идут быстрее реального времени (1 — как обычно). RemainingTime уже пересчитан в реальное время.</summary>
+    public double ClockScale { get; set; } = 1;
+    /// <summary>false — часы ACC стоят (пауза/нет обновлений).</summary>
+    public bool ClockRunning { get; set; } = true;
+
+    /// <summary>None, Formation, Green, Yellow, White, Red, Chequered.</summary>
+    public string Flag { get; set; } = "None";
+    public bool YellowSector1 { get; set; }
+    public bool YellowSector2 { get; set; }
+    public bool YellowSector3 { get; set; }
+    /// <summary>Личный флаг пилота: Blue, Black, Penalty, Orange (пусто — нет). Приходит только от агента.</summary>
+    public string PlayerFlag { get; set; } = "";
+    /// <summary>agent — из памяти ACC на ПК пилота; event — по событию Accident; phase — по фазе сессии.</summary>
+    public string FlagSource { get; set; } = "";
+    public string LastEvent { get; set; } = "";
 
     public RealtimeStateDto Clone() => (RealtimeStateDto)MemberwiseClone();
 }

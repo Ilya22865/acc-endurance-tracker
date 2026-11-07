@@ -16,6 +16,9 @@ public sealed class ApiClient
     public async Task<SessionSnapshotDto?> GetSnapshotAsync(CancellationToken ct = default)
         => await _http.GetFromJsonAsync<SessionSnapshotDto>($"{_baseUrl}/api/live/snapshot", ct);
 
+    public async Task<List<DriverDto>> GetTeamDriversAsync(CancellationToken ct = default)
+        => await _http.GetFromJsonAsync<List<DriverDto>>($"{_baseUrl}/api/drivers/team", ct) ?? new();
+
     public async Task<List<StintDto>> GetStintsAsync(CancellationToken ct = default)
         => await _http.GetFromJsonAsync<List<StintDto>>($"{_baseUrl}/api/stints", ct) ?? new();
 

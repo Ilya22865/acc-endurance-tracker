@@ -4,7 +4,9 @@ namespace AccEndurance.Client.ViewModels;
 
 public sealed class NavItem
 {
-    public string Code { get; init; } = "";
     public string Title { get; init; } = "";
-    public IBrush Accent { get; init; } = Brushes.Gray;
+    /// <summary>Иконка 24×24, рисуется линией (Stroke).</summary>
+    public Geometry Icon { get; init; } = Geometry.Parse("M3 12h18");
+    /// <summary>Над пунктом рисуется разделитель (начало группы «Система»).</summary>
+    public bool IsGroupStart { get; init; }
 }

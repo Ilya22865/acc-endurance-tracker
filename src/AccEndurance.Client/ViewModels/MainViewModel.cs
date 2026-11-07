@@ -25,15 +25,15 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<StintRow> Stints { get; } = new();
     public ObservableCollection<NavItem> NavItems { get; } = new()
     {
-        new NavItem { Code = "P", Title = "Позиции", Accent = SolidColorBrush.Parse("#2EBD93") },
-        new NavItem { Code = "S", Title = "Стинты", Accent = SolidColorBrush.Parse("#4FC3F7") },
-        new NavItem { Code = "T", Title = "Телеметрия", Accent = SolidColorBrush.Parse("#2962FF") },
-        new NavItem { Code = "R", Title = "Радар", Accent = SolidColorBrush.Parse("#FF6B6B") },
-        new NavItem { Code = "A", Title = "Сетап", Accent = SolidColorBrush.Parse("#FFB74D") },
-        new NavItem { Code = "M", Title = "Карта", Accent = SolidColorBrush.Parse("#E84855") },
-        new NavItem { Code = "SV", Title = "Сервер", Accent = SolidColorBrush.Parse("#BA68C8") },
-        new NavItem { Code = "AG", Title = "Агент", Accent = SolidColorBrush.Parse("#F06292") },
-        new NavItem { Code = "⚙", Title = "Настройки", Accent = SolidColorBrush.Parse("#78909C") },
+        new NavItem { Title = "Позиции", Icon = Geometry.Parse("M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01") },
+        new NavItem { Title = "Стинты", Icon = Geometry.Parse("M20 13 A8 8 0 1 1 4 13 A8 8 0 1 1 20 13 M12 9v4l2.5 2.5M9.5 2h5") },
+        new NavItem { Title = "Телеметрия", Icon = Geometry.Parse("M3 12h4l3-8 4 16 3-8h4") },
+        new NavItem { Title = "Радар", Icon = Geometry.Parse("M21 12 A9 9 0 1 1 3 12 A9 9 0 1 1 21 12 M17 12 A5 5 0 1 1 7 12 A5 5 0 1 1 17 12 M12 12 L18 6") },
+        new NavItem { Title = "Сетап", Icon = Geometry.Parse("M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1 M17 6 A2 2 0 1 1 13 6 A2 2 0 1 1 17 6 M11 12 A2 2 0 1 1 7 12 A2 2 0 1 1 11 12 M19 18 A2 2 0 1 1 15 18 A2 2 0 1 1 19 18") },
+        new NavItem { Title = "Карта", Icon = Geometry.Parse("M9 4 L3 6.5 v13 L9 17 l6 3 6-2.5 v-13 L15 7 L9 4 Z M9 4v13 M15 7v13") },
+        new NavItem { Title = "Сервер", IsGroupStart = true, Icon = Geometry.Parse("M5 4 H19 A2 2 0 0 1 21 6 V8 A2 2 0 0 1 19 10 H5 A2 2 0 0 1 3 8 V6 A2 2 0 0 1 5 4 Z M5 14 H19 A2 2 0 0 1 21 16 V18 A2 2 0 0 1 19 20 H5 A2 2 0 0 1 3 18 V16 A2 2 0 0 1 5 14 Z M7 7h.01M7 17h.01") },
+        new NavItem { Title = "Агент", Icon = Geometry.Parse("M4 5 H20 V15 H4 Z M8 19h8M12 15v4") },
+        new NavItem { Title = "Настройки", Icon = Geometry.Parse("M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2") },
     };
     public ObservableCollection<string> SetupCars { get; } = new();
     public ObservableCollection<string> SetupTracks { get; } = new();
@@ -46,7 +46,6 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _timeText = "—";
     [ObservableProperty] private string _ourDriverText = "—";
     [ObservableProperty] private string _serverUrl = "";
-    [ObservableProperty] private string _serverAddress = "127.0.0.1";
     [ObservableProperty] private StintRow? _selectedStint;
     [ObservableProperty] private string? _editNotes;
     [ObservableProperty] private double? _editFuel;
@@ -86,7 +85,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private int _selectedDriverIndex;
     [ObservableProperty] private string _serverExePath = "";
     [ObservableProperty] private string _agentExePath = "";
-    [ObservableProperty] private bool _agentUseFakeData = true;
+    [ObservableProperty] private bool _agentUseFakeData;
 
     // Live telemetry (страница «Телеметрия»)
     public Services.TelemetryBuffer Telemetry { get; } = new();
@@ -95,7 +94,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _telemetryRateText = "—";
     [ObservableProperty] private string _gasText = "0%";
     [ObservableProperty] private string _brakeText = "0%";
-    [ObservableProperty] private string _steerText = "0.00";
+    [ObservableProperty] private string _steerText = "0";
     [ObservableProperty] private int _telemetryWindowIndex = 1; // 0 = 15 с, 1 = 30 с, 2 = 60 с
     public double TelemetryWindowSeconds => TelemetryWindowIndex switch { 0 => 15, 2 => 60, _ => 30 };
     public ICommand ClearTelemetryCommand { get; }
@@ -178,6 +177,7 @@ public sealed partial class MainViewModel : ObservableObject
         ExportToJsonCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToJsonAsync);
         ExportToCsvCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToCsvAsync);
         ClearTelemetryCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => Telemetry.Clear());
+        RefreshTeamDriversCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadTeamDriversAsync);
 
         // Попытка найти Server и Agent рядом с клиентом
         TryLocateServerAndAgent();
@@ -253,6 +253,10 @@ public sealed partial class MainViewModel : ObservableObject
             _settingsService = new Services.SettingsService();
             var settings = _settingsService.LoadSettings();
             OurCarNumber = settings.OurCarNumber;
+            RadarMirror = settings.RadarMirror;
+            RadarRangeIndex = Math.Clamp(settings.RadarRangeIndex, 0, 2);
+            AgentUseFakeData = settings.AgentUseFakeData;
+            _settingsLoaded = true;
 
             // Попытка восстановить последнюю сессию (только если подключение не удалось)
             var restoredSnapshot = _autoSaveService.LoadLastSession();
@@ -311,7 +315,7 @@ public sealed partial class MainViewModel : ObservableObject
             AgentLogLines.Add("❌ Путь к AccEndurance.Agent.exe не указан");
             return;
         }
-        await (_embeddedAgent?.StartAsync(AgentExePath, ServerUrl, SelectedDriverIndex, useFakeData: AgentUseFakeData) ?? Task.CompletedTask);
+        await (_embeddedAgent?.StartAsync(AgentExePath, NormalizeServerUrl(ServerUrl), SelectedDriverIndex, useFakeData: AgentUseFakeData) ?? Task.CompletedTask);
     }
 
     private async Task StopAgentAsync()
@@ -373,7 +377,8 @@ public sealed partial class MainViewModel : ObservableObject
         HubClient? hub = null;
         try
         {
-            var url = $"http://{ServerAddress}:5261";
+            var url = NormalizeServerUrl(ServerUrl);
+            ServerUrl = url;
             _api = new ApiClient(url);
             var initial = await _api.GetSnapshotAsync();
             if (initial == null)
@@ -405,7 +410,9 @@ public sealed partial class MainViewModel : ObservableObject
             IsConnected = true;
             ConnectionStatus = "Подключено";
             ApplySnapshot(initial);
+            SaveServerUrl(url);
             _ = LoadSetupsAsync();
+            _ = LoadTeamDriversAsync();
             return true;
         }
         catch (Exception ex)
@@ -435,13 +442,13 @@ public sealed partial class MainViewModel : ObservableObject
         _currentTrackName = rt.TrackName ?? "";
         MapTrackName = _currentTrackName;
 
-        SessionText = $"{rt.SessionType} · {rt.TrackName ?? "трек"}";
-        PhaseText = rt.Phase;
-        // RemainingTime считает сервер. Старый сервер (без этого поля) присылает 0 — тогда запасная формула.
-        var remaining = rt.RemainingTime > TimeSpan.Zero
-            ? rt.RemainingTime
-            : (rt.SessionEndTime > rt.SessionTime ? rt.SessionEndTime - rt.SessionTime : TimeSpan.Zero);
-        TimeText = $"{FormatClock(remaining)} осталось · прошло {FormatClock(rt.SessionTime)}";
+        SessionText = $"{SessionTypeName(rt.SessionType)} · {rt.TrackName ?? "трек"}";
+        TrackTitle = string.IsNullOrWhiteSpace(rt.TrackName) ? "ACC Endurance" : rt.TrackName;
+        SessionTypeText = SessionTypeName(rt.SessionType);
+        PhaseText = PhaseName(rt.Phase);
+        IsRaceSession = rt.IsRace;
+        ApplyClock(rt);
+        ApplyFlag(rt);
 
         WeatherAir = $"{rt.AmbientTemp}°C";
         WeatherTrack = $"{rt.TrackTemp}°C";
@@ -449,56 +456,29 @@ public sealed partial class MainViewModel : ObservableObject
         WeatherClouds = $"{rt.Clouds * 100:F0}%";
         WeatherWetness = $"{rt.Wetness * 100:F0}%";
 
-        UpdateStandings(snapshot.Cars);
+        UpdateStandings(snapshot.Cars, rt);
+        RecordGapHistory(snapshot.Cars, rt.IsRace);
         UpdateStints(snapshot);
         UpdateMap(snapshot);
 
         var our = snapshot.Cars.FirstOrDefault(c => c.IsOurCar);
-        OurDriverText = our != null ? $"{our.RaceNumber} · {our.Driver} · P{our.Position} · {our.Laps} laps" : "—";
+        OurDriverText = our != null ? $"#{our.RaceNumber} · {our.Driver} · P{our.Position} · {our.Laps} кр." : "—";
+        OwnNumberText = our != null ? our.RaceNumber.ToString() : "—";
+        OwnDriverName = our != null && !string.IsNullOrWhiteSpace(our.Driver) ? our.Driver : "Наша машина не найдена";
+        OwnStatusText = our != null ? $"P{our.Position} · {our.Laps} кр." + (snapshot.CurrentStint != null ? " · стинт " + FormatDuration(DateTime.UtcNow, snapshot.CurrentStint.StartedAt) : "") : "";
 
-        // Автоматически устанавливаем DriverIndex для агента из текущей машины
-        if (our != null && SelectedDriverIndex != our.CarIndex)
-        {
-            SelectedDriverIndex = our.CarIndex;
-        }
+        // Раньше сюда записывался индекс МАШИНЫ (CarIndex) вместо индекса пилота и затирал выбор пользователя на каждом снимке.
+        // Теперь пилот выбирается в окне «Агент» из списка команды.
+        if (TeamDrivers.Count == 0 && our != null && DateTime.UtcNow - _lastTeamDriversTry > TimeSpan.FromSeconds(5))
+            _ = LoadTeamDriversAsync();
+
+        if (IsPage3) UpdateRadar(snapshot);
 
         LastUpdate = DateTime.Now.ToString("HH:mm:ss");
         }
         catch (Exception ex)
         {
             DebugLog.Write("ApplySnapshot ERROR: " + ex);
-        }
-    }
-
-    private void UpdateStandings(List<CarStateDto> cars)
-    {
-        Standings.Clear();
-        var idx = 0;
-        foreach (var c in cars.OrderBy(c => c.Position))
-        {
-            var alt = idx++ % 2 == 1;
-            var isOur = c.IsOurCar;
-            Standings.Add(new StandingsRow
-            {
-                Position = c.Position,
-                RaceNumber = c.RaceNumber,
-                TeamName = c.TeamName,
-                Driver = c.Driver,
-                CarModel = c.CarModelName,
-                Laps = c.Laps,
-                Gap = c.GapSeconds is double g and >= 0 ? $"{(c.Position == 1 ? "" : "+")}{g:F1}s" : "",
-                LastLap = FormatMs(c.LastLapMs),
-                BestLap = FormatMs(c.BestLapMs),
-                IsOurCar = isOur,
-                IsAlt = alt,
-                RowBackground = isOur ? new SolidColorBrush(Color.FromRgb(26, 58, 51))
-                              : alt ? new SolidColorBrush(Color.FromRgb(28, 34, 44))
-                              : new SolidColorBrush(Color.FromRgb(34, 40, 51)),
-                RowBorderBrush = isOur ? new SolidColorBrush(Color.FromRgb(46, 189, 147))
-                               : new SolidColorBrush(Color.FromRgb(44, 51, 63)),
-                RowBorder = isOur ? new Thickness(3, 0, 0, 0) : new Thickness(0, 0, 0, 1),
-                DriverBrush = isOur ? new SolidColorBrush(Color.FromRgb(46, 189, 147)) : Brushes.White,
-            });
         }
     }
 
@@ -953,6 +933,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsPage7 = value == 7;
         IsPage8 = value == 8;
         IsPage9 = value == 9;
+        if (value == 3 && _lastSnapshot != null) UpdateRadar(_lastSnapshot);
     }
 
     public SessionSnapshotDto? LastSnapshot => _lastSnapshot;
@@ -973,7 +954,16 @@ public sealed partial class MainViewModel : ObservableObject
         {
             GasText = $"{p.Gas * 100:F0}%";
             BrakeText = $"{p.Brake * 100:F0}%";
-            SteerText = $"{p.Steer:+0.00;-0.00;0.00}";
+            GasPercent = Math.Clamp(p.Gas * 100, 0, 100);
+            BrakePercent = Math.Clamp(p.Brake * 100, 0, 100);
+
+            // ACC отдаёт руль то в диапазоне −1…1, то в градусах — определяем по размаху данных
+            var range = _steerNormalized ? 1.0 : Math.Max(40.0, _steerMaxAbs);
+            SteerText = _steerNormalized ? $"{p.Steer * 100:+0;-0;0}%" : $"{p.Steer:+0.0;-0.0;0.0}°";
+            var pct = Math.Clamp(p.Steer / range * 100, -100, 100);
+            SteerLeftPercent = pct < 0 ? -pct : 0;
+            SteerRightPercent = pct > 0 ? pct : 0;
+
             TelemetryRateText = $"{Telemetry.Rate():F0} Гц";
             TelemetryStatus = "● Запись идёт";
         }
@@ -982,6 +972,10 @@ public sealed partial class MainViewModel : ObservableObject
             GasText = "—";
             BrakeText = "—";
             SteerText = "—";
+            GasPercent = 0;
+            BrakePercent = 0;
+            SteerLeftPercent = 0;
+            SteerRightPercent = 0;
             TelemetryRateText = "—";
             TelemetryStatus = Telemetry.Points.Count == 0
                 ? "Нет данных — запустите агент (вкладка «Агент») и выберите пилота"
@@ -990,13 +984,16 @@ public sealed partial class MainViewModel : ObservableObject
         UpdateTelemetryStats();
     }
 
+    private bool _steerNormalized = true;
+    private double _steerMaxAbs;
+
     private void UpdateTelemetryStats()
     {
         if (Telemetry.Points.Count == 0)
         {
             TelemetryAvgGas = "0%";
             TelemetryAvgBrake = "0%";
-            TelemetryMaxSteer = "0°";
+            TelemetryMaxSteer = "0";
             TelemetryBrakeTime = "0%";
             TelemetryFullThrottleTime = "0%";
             return;
@@ -1013,12 +1010,18 @@ public sealed partial class MainViewModel : ObservableObject
             if (p.Gas > 0.9) fullThrottleTime++;
         }
 
+        _steerMaxAbs = maxSteer;
+        _steerNormalized = maxSteer <= 1.5;
+
         TelemetryAvgGas = $"{sumGas / Telemetry.Points.Count * 100:F0}%";
         TelemetryAvgBrake = $"{sumBrake / Telemetry.Points.Count * 100:F0}%";
-        TelemetryMaxSteer = $"{maxSteer:F1}°";
+        TelemetryMaxSteer = _steerNormalized ? $"{maxSteer * 100:F0}%" : $"{maxSteer:F1}°";
         TelemetryBrakeTime = $"{brakeTime / Telemetry.Points.Count * 100:F0}%";
         TelemetryFullThrottleTime = $"{fullThrottleTime / Telemetry.Points.Count * 100:F0}%";
     }
+
+    /// <summary>Единицы руля: true — значения в диапазоне −1…1 (доли хода), false — градусы.</summary>
+    public bool SteerNormalized => _steerNormalized;
 
     private void ClearAutoSave()
     {
@@ -1046,7 +1049,19 @@ public sealed partial class MainViewModel : ObservableObject
         TelemetryRateText = "—";
         GasText = "0%";
         BrakeText = "0%";
-        SteerText = "0.00";
+        SteerText = "0";
+        GasPercent = BrakePercent = SteerLeftPercent = SteerRightPercent = 0;
+        _rows.Clear();
+        _gapHistory.Clear();
+        _radarPrev.Clear();
+        SelectedStanding = null;
+        RadarNear.Clear();
+        RadarFrameData = null;
+        RadarUpdated?.Invoke();
+        _hasClock = false;
+        RemainingText = "--:--:--";
+        ElapsedText = "";
+        ClockNote = "";
         MapTrackName = "";
         WeatherAir = "";
         WeatherTrack = "";
@@ -1123,11 +1138,21 @@ public sealed partial class MainViewModel : ObservableObject
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";
     private static string FormatDuration(DateTime end, DateTime start) => (end - start).ToString(@"h\:mm\:ss");
 
-    partial void OnOurCarNumberChanged(int value)
+    private bool _settingsLoaded;
+
+    private void SaveSettings()
     {
+        if (!_settingsLoaded) return;
         _settingsService?.SaveSettings(new Services.AppSettings
         {
-            OurCarNumber = value
+            OurCarNumber = OurCarNumber,
+            RadarMirror = RadarMirror,
+            RadarRangeIndex = RadarRangeIndex,
+            AgentUseFakeData = AgentUseFakeData,
         });
     }
+
+    partial void OnOurCarNumberChanged(int value) => SaveSettings();
+
+    partial void OnAgentUseFakeDataChanged(bool value) => SaveSettings();
 }

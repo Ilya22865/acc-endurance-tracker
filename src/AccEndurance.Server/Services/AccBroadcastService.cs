@@ -90,6 +90,7 @@ public sealed class AccBroadcastService : BackgroundService
         _protocol.OnBroadcastingEvent += evt =>
         {
             _logger.LogInformation("Event: {Type} — {Msg}", evt.Type, evt.Msg);
+            _sessionState.ProcessBroadcastingEvent(evt);
         };
 
         // события подключены — теперь можно начинать приём

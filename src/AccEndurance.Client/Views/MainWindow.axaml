@@ -1,652 +1,800 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AccEndurance.Client.ViewModels"
-        xmlns:conv="using:AccEndurance.Client.Converters"
         x:Class="AccEndurance.Client.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="ACC Endurance Tracker"
-        Width="1320" Height="800" MinWidth="1000" MinHeight="650"
+        Width="1380" Height="860" MinWidth="1240" MinHeight="700"
         RequestedThemeVariant="Dark"
-        Background="#0A0C10"
+        Background="{DynamicResource BgBrush}"
         WindowStartupLocation="CenterScreen"
         FontFamily="Inter, Segoe UI, sans-serif">
 
-  <Window.Styles>
-    <Style Selector="TextBlock.h1">
-      <Setter Property="FontSize" Value="16"/>
-      <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="Foreground" Value="#E8EAED"/>
-      <Setter Property="LetterSpacing" Value="-0.2"/>
-    </Style>
-    <Style Selector="TextBlock.h2">
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="Foreground" Value="#E8EAED"/>
-    </Style>
-    <Style Selector="TextBlock.label">
-      <Setter Property="FontSize" Value="11"/>
-      <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="Foreground" Value="#70757A"/>
-      <Setter Property="LetterSpacing" Value="0.5"/>
-    </Style>
-    <Style Selector="TextBlock.muted">
-      <Setter Property="Foreground" Value="#70757A"/>
-      <Setter Property="FontSize" Value="13"/>
-    </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#2962FF"/>
-      <Setter Property="Foreground" Value="#FFFFFF"/>
-      <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="CornerRadius" Value="4"/>
-      <Setter Property="Padding" Value="16,8"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="FontSize" Value="13"/>
-    </Style>
-    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#1E4FE5"/>
-    </Style>
-    <Style Selector="Button.secondary">
-      <Setter Property="Background" Value="#1A1D23"/>
-      <Setter Property="Foreground" Value="#C8CACD"/>
-      <Setter Property="FontWeight" Value="Medium"/>
-      <Setter Property="CornerRadius" Value="4"/>
-      <Setter Property="Padding" Value="14,8"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="BorderBrush" Value="#2D3139"/>
-      <Setter Property="FontSize" Value="13"/>
-    </Style>
-    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="#23262D"/>
-    </Style>
-    <Style Selector="TextBox">
-      <Setter Property="Background" Value="#1A1D23"/>
-      <Setter Property="Foreground" Value="#E8EAED"/>
-      <Setter Property="BorderBrush" Value="#2D3139"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="4"/>
-      <Setter Property="Padding" Value="10,7"/>
-      <Setter Property="FontSize" Value="13"/>
-    </Style>
-    <Style Selector="TextBox:focus /template/ Border">
-      <Setter Property="BorderBrush" Value="#2962FF"/>
-    </Style>
-    <Style Selector="ComboBox">
-      <Setter Property="Background" Value="#1A1D23"/>
-      <Setter Property="Foreground" Value="#E8EAED"/>
-      <Setter Property="BorderBrush" Value="#2D3139"/>
-      <Setter Property="CornerRadius" Value="4"/>
-      <Setter Property="FontSize" Value="13"/>
-    </Style>
-    <Style Selector="ListBox">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-    </Style>
-    <Style Selector="ListBoxItem">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Padding" Value="0"/>
-      <Setter Property="Margin" Value="0"/>
-    </Style>
-    <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-      <Setter Property="Background" Value="#1A1D23"/>
-    </Style>
-  </Window.Styles>
+  <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="208,*">
 
-  <Grid RowDefinitions="Auto,*" Margin="16">
+    <!-- ===================== ВЕРХНЯЯ ПОЛОСА ===================== -->
+    <Border Grid.ColumnSpan="2" Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+      <Panel>
+        <!-- линия цвета текущего флага -->
+        <Border Classes="flagline"
+                Classes.green="{Binding IsFlagGreen}" Classes.yellow="{Binding IsFlagYellow}"
+                Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
+                Classes.chequered="{Binding IsFlagChequered}"/>
 
-    <!-- Header -->
-    <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20,14">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="24">
-          <TextBlock Text="{Binding SessionText}" Classes="h1"/>
-          <TextBlock Text="{Binding PhaseText}" Classes="muted"/>
-          <TextBlock Text="{Binding TimeText}" Foreground="#2962FF" FontWeight="Medium" FontSize="13"/>
-        </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <TextBlock Text="{Binding OurDriverText}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED"/>
-          <Border Width="1" Height="20" Background="#2D3139"/>
-          <TextBlock Text="Host:" Classes="muted" VerticalAlignment="Center"/>
-          <TextBox Width="120" PlaceholderText="127.0.0.1" Text="{Binding ServerAddress}"/>
-          <TextBlock Text="{Binding ConnectionStatus}" Classes="muted"/>
-          <Button Content="Connect" Command="{Binding ConnectCommand}" Classes="primary"/>
-        </StackPanel>
-      </Grid>
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="28" Margin="20,17,20,12">
+
+          <!-- трасса, сессия, флаг -->
+          <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+            <StackPanel>
+              <TextBlock Classes="h1" Text="{Binding TrackTitle}"/>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Classes="secondary" Text="{Binding SessionTypeText}"/>
+                <TextBlock Classes="muted" Text="·"/>
+                <TextBlock Classes="muted" Text="{Binding PhaseText}"/>
+              </StackPanel>
+            </StackPanel>
+            <Border Classes="flagchip"
+                    Classes.green="{Binding IsFlagGreen}" Classes.yellow="{Binding IsFlagYellow}"
+                    Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
+                    Classes.chequered="{Binding IsFlagChequered}">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Ellipse Classes="flagdot"
+                         Classes.green="{Binding IsFlagGreen}" Classes.yellow="{Binding IsFlagYellow}"
+                         Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
+                         Classes.chequered="{Binding IsFlagChequered}"/>
+                <TextBlock Text="{Binding FlagText}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- до конца сессии -->
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock Classes="label" Text="ДО КОНЦА" HorizontalAlignment="Right"/>
+            <TextBlock Classes="clock" Text="{Binding RemainingText}" HorizontalAlignment="Right"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+              <TextBlock Classes="muted" FontSize="12" Text="{Binding ElapsedText}"/>
+              <TextBlock FontSize="12" Foreground="{DynamicResource WarnBrush}" Text="{Binding ClockNote}"/>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- наша машина -->
+          <Border Grid.Column="2" Padding="8,7,16,7" CornerRadius="10" VerticalAlignment="Center"
+                  Background="{DynamicResource Surface2Brush}"
+                  BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Border Classes="numbadge own"><TextBlock Text="{Binding OwnNumberText}"/></Border>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding OwnDriverName}" FontWeight="SemiBold"/>
+                <TextBlock Classes="secondary mono" FontSize="12" Text="{Binding OwnStatusText}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- подключение -->
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <TextBox Width="190" PlaceholderText="192.168.1.20:5261" Text="{Binding ServerUrl}"/>
+            <Button Content="Подключить" Command="{Binding ConnectCommand}" Classes="primary"/>
+            <TextBlock Classes="muted" FontSize="12" MaxWidth="150" TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center" Text="{Binding ConnectionStatus}"/>
+          </StackPanel>
+        </Grid>
+      </Panel>
     </Border>
 
-    <!-- Main: sidebar + pages -->
-    <Grid Grid.Row="1" ColumnDefinitions="200,*" Margin="0,16,0,0" ColumnSpacing="16">
+    <!-- ===================== ПОЛОСА ФЛАГА ===================== -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="flagbanner" IsVisible="{Binding ShowFlagBanner}"
+            Classes.yellow="{Binding IsFlagYellow}" Classes.red="{Binding IsFlagRed}"
+            Classes.white="{Binding IsFlagWhite}" Classes.chequered="{Binding IsFlagChequered}">
+      <StackPanel Orientation="Horizontal" Spacing="14">
+        <TextBlock Text="{Binding FlagText}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsFlagYellow}">
+          <Border Classes="sector" Classes.on="{Binding YellowS1}"><TextBlock Text="S1" FontSize="12" FontWeight="Bold"/></Border>
+          <Border Classes="sector" Classes.on="{Binding YellowS2}"><TextBlock Text="S2" FontSize="12" FontWeight="Bold"/></Border>
+          <Border Classes="sector" Classes.on="{Binding YellowS3}"><TextBlock Text="S3" FontSize="12" FontWeight="Bold"/></Border>
+        </StackPanel>
+        <TextBlock Text="{Binding FlagDetail}" FontSize="13" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding PlayerFlagText}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"
+                   IsVisible="{Binding HasPlayerFlag}"/>
+      </StackPanel>
+    </Border>
 
-      <!-- Sidebar -->
-      <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="8,12">
-        <DockPanel>
-          <TextBlock DockPanel.Dock="Top" Text="NAVIGATION" Classes="label" Margin="12,0,0,12"/>
-          <ListBox ItemsSource="{Binding NavItems}"
-                   SelectedIndex="{Binding SelectedPageIndex, Mode=TwoWay}"
-                   Background="Transparent">
-            <ListBox.Styles>
-              <Style Selector="ListBoxItem">
-                <Setter Property="CornerRadius" Value="4"/>
-                <Setter Property="Margin" Value="0,1"/>
-                <Setter Property="Padding" Value="12,10"/>
-              </Style>
-              <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                <Setter Property="Background" Value="#1A1D23"/>
-              </Style>
-              <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                <Setter Property="Background" Value="#16181E"/>
-              </Style>
-            </ListBox.Styles>
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:NavItem">
-                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Medium" Foreground="#C8CACD" VerticalAlignment="Center"/>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </DockPanel>
-      </Border>
+    <!-- ===================== НАВИГАЦИЯ ===================== -->
+    <Border Grid.Row="2" Background="{DynamicResource RailBrush}"
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0" Padding="10,14">
+      <ListBox Classes="nav" ItemsSource="{Binding NavItems}"
+               SelectedIndex="{Binding SelectedPageIndex, Mode=TwoWay}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:NavItem">
+            <StackPanel>
+              <Border Height="1" Margin="6,12,6,8" Background="{DynamicResource LineBrush}" IsVisible="{Binding IsGroupStart}"/>
+              <StackPanel Orientation="Horizontal" Spacing="12" Margin="12,10">
+                <Path Classes="icon" Data="{Binding Icon}"/>
+                <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"/>
+              </StackPanel>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
 
-      <!-- Pages -->
-      <Border Grid.Column="1" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-        <Panel>
+    <!-- ===================== СТРАНИЦЫ ===================== -->
+    <Panel Grid.Row="2" Grid.Column="1" Margin="20,16,20,20">
 
-        <!-- PAGE 0 — POSITIONS -->
-        <Panel IsVisible="{Binding IsPage0}" Margin="16">
-          <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-            <Grid RowDefinitions="Auto,*">
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="0,0,0,1" Padding="16,12">
-                <Grid ColumnDefinitions="48,56,195,110,165,60,70,96,96">
-                  <TextBlock Text="P" Classes="label"/>
-                  <TextBlock Grid.Column="1" Text="№" Classes="label"/>
-                  <TextBlock Grid.Column="2" Text="TEAM" Classes="label"/>
-                  <TextBlock Grid.Column="3" Text="DRIVER" Classes="label"/>
-                  <TextBlock Grid.Column="4" Text="CAR" Classes="label"/>
-                  <TextBlock Grid.Column="5" Text="LAPS" Classes="label"/>
-                  <TextBlock Grid.Column="6" Text="GAP" Classes="label"/>
-                  <TextBlock Grid.Column="7" Text="LAST" Classes="label"/>
-                  <TextBlock Grid.Column="8" Text="BEST" Classes="label"/>
+      <!-- ============ 0 · ПОЗИЦИИ ============ -->
+      <Grid IsVisible="{Binding IsPage0}" ColumnDefinitions="*,340" ColumnSpacing="16">
+
+        <Border Classes="card">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Classes="cardhead">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Classes="h2" Text="Позиции"/>
+                  <Border Classes="chip"><TextBlock Text="{Binding SessionTypeText}"/></Border>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource BestBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="secondary" FontSize="12" Text="Лучший круг сессии"/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource GoodBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="secondary" FontSize="12" Text="Личный лучший"/>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <!-- таблица гонки: отрывы -->
+            <Grid IsVisible="{Binding IsRaceSession}" RowDefinitions="Auto,*">
+              <Border Classes="thead">
+                <Grid ColumnDefinitions="44,60,*,52,84,84,94,94">
+                  <TextBlock Classes="label" Text="ПОЗ"/>
+                  <TextBlock Grid.Column="1" Classes="label" Text="№"/>
+                  <TextBlock Grid.Column="2" Classes="label" Text="КОМАНДА И ПИЛОТ" Margin="4,0,0,0"/>
+                  <TextBlock Grid.Column="3" Classes="label" Text="КРУГИ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="4" Classes="label" Text="ОТРЫВ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="5" Classes="label" Text="ИНТЕРВАЛ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="6" Classes="label" Text="ПОСЛЕДНИЙ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="7" Classes="label" Text="ЛУЧШИЙ" HorizontalAlignment="Right"/>
                 </Grid>
               </Border>
-              <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Standings}" Margin="0">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:StandingsRow">
-                      <Border Background="{Binding RowBackground}" BorderBrush="{Binding RowBorderBrush}"
-                              BorderThickness="{Binding RowBorder}" Padding="16,10">
-                        <Grid ColumnDefinitions="48,56,195,110,165,60,70,96,96">
-                          <TextBlock Text="{Binding Position}" Foreground="#C8CACD" FontSize="13"/>
-                          <TextBlock Grid.Column="1" Text="{Binding RaceNumber}" FontWeight="Medium" Foreground="#E8EAED" FontSize="13"/>
-                          <TextBlock Grid.Column="2" Text="{Binding TeamName}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="3" Text="{Binding Driver}" FontWeight="Medium" Foreground="{Binding DriverBrush}" FontSize="13"/>
-                          <TextBlock Grid.Column="4" Text="{Binding CarModel}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="5" Text="{Binding Laps}" Foreground="#C8CACD" FontSize="13"/>
-                          <TextBlock Grid.Column="6" Text="{Binding Gap}" Foreground="#C8CACD" FontSize="13"/>
-                          <TextBlock Grid.Column="7" Text="{Binding LastLap}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="8" Text="{Binding BestLap}" Foreground="#2962FF" FontWeight="Medium" FontSize="13"/>
+              <ListBox Grid.Row="1" Classes="table" ItemsSource="{Binding Standings}"
+                       SelectedItem="{Binding SelectedStanding, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:StandingsRow">
+                    <Border Classes="row" Classes.own="{Binding IsOurCar}" ToolTip.Tip="{Binding CarModel}">
+                      <Panel>
+                        <Border Classes="ownbar" IsVisible="{Binding IsOurCar}"/>
+                        <Grid ColumnDefinitions="44,60,*,52,84,84,94,94" Margin="14,0" VerticalAlignment="Center">
+                          <TextBlock Classes="pos" Text="{Binding Position}"/>
+                          <Border Grid.Column="1" Classes="numbadge" Classes.own="{Binding IsOurCar}">
+                            <TextBlock Text="{Binding RaceNumber}"/>
+                          </Border>
+                          <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0,8,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="{Binding TeamName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="190"/>
+                              <Border Classes="chip warn" IsVisible="{Binding InPit}"><TextBlock Text="Боксы"/></Border>
+                            </StackPanel>
+                            <TextBlock Classes="secondary" Text="{Binding Driver}" TextTrimming="CharacterEllipsis"/>
+                          </StackPanel>
+                          <TextBlock Grid.Column="3" Classes="gap" Text="{Binding Laps}"/>
+                          <TextBlock Grid.Column="4" Classes="gap" Text="{Binding GapToLeader}"/>
+                          <TextBlock Grid.Column="5" Classes="gap" Text="{Binding IntervalAhead}"/>
+                          <TextBlock Grid.Column="6" Classes="time" Text="{Binding LastLap}"
+                                     Classes.pb="{Binding LastIsPersonalBest}" Classes.best="{Binding LastIsSessionBest}"/>
+                          <TextBlock Grid.Column="7" Classes="time" Text="{Binding BestLap}"
+                                     Classes.best="{Binding BestIsSessionBest}"/>
                         </Grid>
+                      </Panel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+
+            <!-- таблица квалификации / практики: только время круга -->
+            <Grid IsVisible="{Binding !IsRaceSession}" RowDefinitions="Auto,*">
+              <Border Classes="thead">
+                <Grid ColumnDefinitions="44,60,*,52,110,110">
+                  <TextBlock Classes="label" Text="ПОЗ"/>
+                  <TextBlock Grid.Column="1" Classes="label" Text="№"/>
+                  <TextBlock Grid.Column="2" Classes="label" Text="КОМАНДА И ПИЛОТ" Margin="4,0,0,0"/>
+                  <TextBlock Grid.Column="3" Classes="label" Text="КРУГИ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="4" Classes="label" Text="ПОСЛЕДНИЙ" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="5" Classes="label" Text="ЛУЧШИЙ" HorizontalAlignment="Right"/>
+                </Grid>
+              </Border>
+              <ListBox Grid.Row="1" Classes="table" ItemsSource="{Binding Standings}"
+                       SelectedItem="{Binding SelectedStanding, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:StandingsRow">
+                    <Border Classes="row" Classes.own="{Binding IsOurCar}" ToolTip.Tip="{Binding CarModel}">
+                      <Panel>
+                        <Border Classes="ownbar" IsVisible="{Binding IsOurCar}"/>
+                        <Grid ColumnDefinitions="44,60,*,52,110,110" Margin="14,0" VerticalAlignment="Center">
+                          <TextBlock Classes="pos" Text="{Binding Position}"/>
+                          <Border Grid.Column="1" Classes="numbadge" Classes.own="{Binding IsOurCar}">
+                            <TextBlock Text="{Binding RaceNumber}"/>
+                          </Border>
+                          <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0,8,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="{Binding TeamName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="190"/>
+                              <Border Classes="chip warn" IsVisible="{Binding InPit}"><TextBlock Text="Боксы"/></Border>
+                            </StackPanel>
+                            <TextBlock Classes="secondary" Text="{Binding Driver}" TextTrimming="CharacterEllipsis"/>
+                          </StackPanel>
+                          <TextBlock Grid.Column="3" Classes="gap" Text="{Binding Laps}"/>
+                          <TextBlock Grid.Column="4" Classes="time" Text="{Binding LastLap}"
+                                     Classes.pb="{Binding LastIsPersonalBest}" Classes.best="{Binding LastIsSessionBest}"/>
+                          <TextBlock Grid.Column="5" Classes="time" Text="{Binding BestLap}"
+                                     Classes.best="{Binding BestIsSessionBest}"/>
+                        </Grid>
+                      </Panel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </DockPanel>
+        </Border>
+
+        <!-- карточка выбранного пилота -->
+        <Border Grid.Column="1" Classes="card">
+          <Panel>
+            <StackPanel IsVisible="{Binding !HasSelectedStanding}" VerticalAlignment="Center" Margin="28" Spacing="10">
+              <TextBlock Classes="h2" Text="Выберите пилота" HorizontalAlignment="Center"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" TextAlignment="Center"
+                         Text="Нажмите на строку в таблице. В гонке здесь появятся отрывы и тренд дистанции до нашей машины, в квалификации и практике — время круга."/>
+            </StackPanel>
+
+            <ScrollViewer IsVisible="{Binding HasSelectedStanding}" VerticalScrollBarVisibility="Auto">
+              <StackPanel Margin="18" Spacing="16">
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                  <Border Classes="numbadge" Classes.own="{Binding SelectedStanding.IsOurCar}" VerticalAlignment="Top">
+                    <TextBlock Text="{Binding SelectedStanding.RaceNumber}"/>
+                  </Border>
+                  <StackPanel Grid.Column="1">
+                    <TextBlock Classes="h2" Text="{Binding SelectedStanding.Driver}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Classes="secondary" Text="{Binding SelectedStanding.TeamName}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding SelectedStanding.CarModel}" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                </Grid>
+
+                <!-- гонка: отрывы -->
+                <StackPanel IsVisible="{Binding IsRaceSession}" Spacing="14">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="label" Text="ОТРЫВ ДО НАШЕЙ МАШИНЫ"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <TextBlock Classes="big" Text="{Binding SelectedStanding.GapToOur}"
+                                 Classes.ahead="{Binding SelectedStanding.GapToOurAhead}"
+                                 Classes.behind="{Binding SelectedStanding.GapToOurBehind}"/>
+                      <TextBlock Classes="secondary" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                                 Text="{Binding SelectedStanding.GapToOurLabel}"/>
+                    </StackPanel>
+                    <TextBlock FontSize="13" FontWeight="Medium" Text="{Binding SelectedStanding.TrendText}"
+                               Foreground="{DynamicResource Text2Brush}"
+                               Classes.good="{Binding SelectedStanding.TrendGood}"
+                               Classes.bad="{Binding SelectedStanding.TrendBad}"/>
+                  </StackPanel>
+
+                  <Border Classes="panel" Padding="8">
+                    <Canvas x:Name="GapTrendCanvas" Height="96" ClipToBounds="True" Background="Transparent"/>
+                  </Border>
+
+                  <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <Border Classes="panel" Padding="10,8">
+                      <StackPanel>
+                        <TextBlock Classes="label" Text="ДО ЛИДЕРА"/>
+                        <TextBlock Classes="mono" FontSize="17" FontWeight="SemiBold" Text="{Binding SelectedStanding.GapToLeader}"/>
+                      </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Classes="panel" Padding="10,8">
+                      <StackPanel>
+                        <TextBlock Classes="label" Text="ВПЕРЕДИ"/>
+                        <TextBlock Classes="mono" FontSize="17" FontWeight="SemiBold" Text="{Binding SelectedStanding.IntervalAhead}"/>
+                      </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Classes="panel" Padding="10,8">
+                      <StackPanel>
+                        <TextBlock Classes="label" Text="ПОЗАДИ"/>
+                        <TextBlock Classes="mono" FontSize="17" FontWeight="SemiBold" Text="{Binding SelectedStanding.IntervalBehind}"/>
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </StackPanel>
+
+                <!-- время круга (всегда) -->
+                <Border Classes="panel">
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel>
+                      <TextBlock Classes="label" Text="ПОСЛЕДНИЙ КРУГ"/>
+                      <TextBlock Classes="big" FontSize="26" Text="{Binding SelectedStanding.LastLap}"
+                                 Classes.pb="{Binding SelectedStanding.LastIsPersonalBest}"
+                                 Classes.best="{Binding SelectedStanding.LastIsSessionBest}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Classes="label" Text="ЛУЧШИЙ КРУГ"/>
+                      <TextBlock Classes="big" FontSize="26" Text="{Binding SelectedStanding.BestLap}"
+                                 Classes.best="{Binding SelectedStanding.BestIsSessionBest}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Classes="secondary" Text="Пройдено кругов"/>
+                  <TextBlock Grid.Column="1" Classes="mono" FontSize="16" FontWeight="SemiBold" Text="{Binding SelectedStanding.Laps}"/>
+                </Grid>
+                <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding !IsRaceSession}"
+                           Text="В квалификации и практике отрывы не показываются — позиции считаются по лучшему кругу."/>
+              </StackPanel>
+            </ScrollViewer>
+          </Panel>
+        </Border>
+      </Grid>
+
+      <!-- ============ 1 · СТИНТЫ ============ -->
+      <Grid IsVisible="{Binding IsPage1}" RowDefinitions="Auto,*" RowSpacing="16">
+        <Border Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,*,Auto,90,Auto,70,Auto" ColumnSpacing="12">
+            <TextBlock Text="Заметки" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" PlaceholderText="заметки по стинту" Text="{Binding EditNotes}"/>
+            <TextBlock Grid.Column="2" Text="Топливо, л" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="3" Text="{Binding EditFuel}"/>
+            <TextBlock Grid.Column="4" Text="Круги" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="5" Text="{Binding EditLaps}"/>
+            <Button Grid.Column="6" Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="card">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Classes="thead">
+              <Grid ColumnDefinitions="140,50,110,110,110,110,110,60">
+                <TextBlock Classes="label" Text="ПИЛОТ"/>
+                <TextBlock Grid.Column="1" Classes="label" Text="№"/>
+                <TextBlock Grid.Column="2" Classes="label" Text="СТАРТ (РЕАЛ)"/>
+                <TextBlock Grid.Column="3" Classes="label" Text="СТАРТ (ИГРА)"/>
+                <TextBlock Grid.Column="4" Classes="label" Text="КОНЕЦ (РЕАЛ)"/>
+                <TextBlock Grid.Column="5" Classes="label" Text="КОНЕЦ (ИГРА)"/>
+                <TextBlock Grid.Column="6" Classes="label" Text="ДЛИТЕЛЬНОСТЬ"/>
+                <TextBlock Grid.Column="7" Classes="label" Text="КРУГ"/>
+              </Grid>
+            </Border>
+            <ListBox Classes="table" ItemsSource="{Binding Stints}" SelectedItem="{Binding SelectedStint}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:StintRow">
+                  <Border Classes="row compact" Padding="14,0">
+                    <Grid ColumnDefinitions="140,50,110,110,110,110,110,60" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Driver}" FontWeight="SemiBold" Classes.open="{Binding IsOpen}"/>
+                      <TextBlock Grid.Column="1" Classes="muted mono" Text="{Binding Ordinal}"/>
+                      <TextBlock Grid.Column="2" Classes="secondary mono" Text="{Binding StartReal}"/>
+                      <TextBlock Grid.Column="3" Classes="secondary mono" Text="{Binding StartGame}"/>
+                      <TextBlock Grid.Column="4" Classes="secondary mono" Text="{Binding EndReal}"/>
+                      <TextBlock Grid.Column="5" Classes="secondary mono" Text="{Binding EndGame}"/>
+                      <TextBlock Grid.Column="6" Classes="mono" FontWeight="SemiBold" Text="{Binding Duration}"/>
+                      <TextBlock Grid.Column="7" Classes="secondary mono" Text="{Binding LapNumber}"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+      </Grid>
+
+      <!-- ============ 2 · ТЕЛЕМЕТРИЯ ============ -->
+      <Grid IsVisible="{Binding IsPage2}" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+        <Border Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="18">
+            <StackPanel>
+              <TextBlock Classes="label" Text="ТЕЛЕМЕТРИЯ"/>
+              <TextBlock Classes="h2" Text="{Binding TelemetryDriverName}"/>
+            </StackPanel>
+            <TextBlock Grid.Column="1" Classes="secondary" VerticalAlignment="Center" Text="{Binding TelemetryStatus}"/>
+            <TextBlock Grid.Column="2" Classes="mono" FontSize="15" Foreground="{DynamicResource Text2Brush}"
+                       VerticalAlignment="Center" Text="{Binding TelemetryRateText}"/>
+            <ListBox Grid.Column="3" Classes="seg" SelectedIndex="{Binding TelemetryWindowIndex, Mode=TwoWay}" VerticalAlignment="Center">
+              <ListBoxItem Content="15 с"/>
+              <ListBoxItem Content="30 с"/>
+              <ListBoxItem Content="60 с"/>
+            </ListBox>
+            <Button Grid.Column="4" Content="Очистить" Command="{Binding ClearTelemetryCommand}"/>
+          </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="16">
+          <Border Classes="card" Padding="18,14">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="label" Text="ГАЗ"/>
+              <TextBlock Classes="big" Text="{Binding GasText}" Foreground="{DynamicResource GoodBrush}"/>
+              <ProgressBar Classes="gauge gas" Value="{Binding GasPercent}"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Padding="18,14">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="label" Text="ТОРМОЗ"/>
+              <TextBlock Classes="big" Text="{Binding BrakeText}" Foreground="{DynamicResource DangerBrush}"/>
+              <ProgressBar Classes="gauge brake" Value="{Binding BrakePercent}"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" Classes="card" Padding="18,14">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="label" Text="РУЛЬ"/>
+              <TextBlock Classes="big" Text="{Binding SteerText}" Foreground="{DynamicResource InfoBrush}"/>
+              <Grid ColumnDefinitions="*,2,*">
+                <ProgressBar Classes="gauge steer" FlowDirection="RightToLeft" Value="{Binding SteerLeftPercent}"/>
+                <Border Grid.Column="1" Background="{DynamicResource LineStrongBrush}"/>
+                <ProgressBar Grid.Column="2" Classes="gauge steer" Value="{Binding SteerRightPercent}"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,280" ColumnSpacing="16">
+          <Grid RowDefinitions="*,*" RowSpacing="16">
+            <Border Classes="card">
+              <Grid RowDefinitions="Auto,*">
+                <Border Classes="cardhead" Padding="16,10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="Педали"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14">
+                      <TextBlock FontSize="12" Foreground="{DynamicResource GoodBrush}" Text="● Газ"/>
+                      <TextBlock FontSize="12" Foreground="{DynamicResource DangerBrush}" Text="● Тормоз"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+                <Panel Grid.Row="1" Margin="8">
+                  <Canvas x:Name="GasCanvas" ClipToBounds="True" Background="Transparent"/>
+                  <Canvas x:Name="BrakeCanvas" ClipToBounds="True" Background="Transparent" IsHitTestVisible="False"/>
+                </Panel>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Classes="card">
+              <Grid RowDefinitions="Auto,*">
+                <Border Classes="cardhead" Padding="16,10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="Руль"/>
+                    <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource InfoBrush}" Text="масштаб подбирается автоматически"/>
+                  </Grid>
+                </Border>
+                <Canvas Grid.Row="1" x:Name="SteerCanvas" Margin="8" ClipToBounds="True" Background="Transparent"/>
+              </Grid>
+            </Border>
+          </Grid>
+
+          <Border Grid.Column="1" Classes="card" Padding="18">
+            <StackPanel Spacing="16">
+              <TextBlock Classes="label" Text="СТАТИСТИКА СТИНТА"/>
+              <StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="Средний газ"/>
+                <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource GoodBrush}" Text="{Binding TelemetryAvgGas}"/>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="Средний тормоз"/>
+                <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" Text="{Binding TelemetryAvgBrake}"/>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="Максимальный поворот руля"/>
+                <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}" Text="{Binding TelemetryMaxSteer}"/>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="Время на тормозе"/>
+                <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Text="{Binding TelemetryBrakeTime}"/>
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Classes="muted" FontSize="12" Text="Время с полным газом"/>
+                <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Text="{Binding TelemetryFullThrottleTime}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Grid>
+
+      <!-- ============ 3 · РАДАР ============ -->
+      <Grid IsVisible="{Binding IsPage3}" ColumnDefinitions="*,330" ColumnSpacing="16">
+        <Border Classes="card">
+          <Grid RowDefinitions="Auto,*,Auto">
+            <Border Classes="cardhead" Padding="16,10">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                  <TextBlock Classes="h2" Text="Радар"/>
+                  <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1" Content="Зеркало лево/право" IsChecked="{Binding RadarMirror, Mode=TwoWay}"
+                          VerticalAlignment="Center" FontSize="12"/>
+                <ListBox Grid.Column="2" Classes="seg" SelectedIndex="{Binding RadarRangeIndex, Mode=TwoWay}">
+                  <ListBoxItem Content="20 м"/>
+                  <ListBoxItem Content="40 м"/>
+                  <ListBoxItem Content="60 м"/>
+                </ListBox>
+              </Grid>
+            </Border>
+            <Canvas Grid.Row="1" x:Name="RadarCanvas" ClipToBounds="True" Background="Transparent"/>
+            <TextBlock Grid.Row="2" Classes="muted" FontSize="12" Margin="16,6,16,12" HorizontalAlignment="Center"
+                       Text="{Binding RadarStatus}"/>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+          <StackPanel>
+            <Border Classes="cardhead" Padding="16,12"><TextBlock Classes="h2" Text="Рядом"/></Border>
+            <Border Classes="spotter" Classes.danger="{Binding SpotterDanger}">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Ellipse Classes="spotdot" Classes.danger="{Binding SpotterDanger}"/>
+                <TextBlock Classes="spottext" Classes.danger="{Binding SpotterDanger}" FontSize="18" FontWeight="SemiBold" Text="{Binding SpotterText}"/>
+              </StackPanel>
+            </Border>
+            <ItemsControl ItemsSource="{Binding RadarNear}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RadarNearItem">
+                  <Border Classes="near" Classes.warn="{Binding IsWarn}" Classes.danger="{Binding IsDanger}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                      <Border Classes="numbadge"><TextBlock Text="{Binding Number}"/></Border>
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock FontWeight="SemiBold" Text="{Binding Where}"/>
+                        <TextBlock Classes="muted" FontSize="12" Text="{Binding ClosingText}"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Classes="mono" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"
+                                 Text="{Binding DistanceText}"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ============ 4 · СЕТАП ============ -->
+      <Grid IsVisible="{Binding IsPage4}" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+        <Border Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,220,Auto,240,*,Auto,Auto" ColumnSpacing="12">
+            <TextBlock Text="Авто" Classes="muted" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding SetupCars}" SelectedItem="{Binding SelectedSetupCar}"/>
+            <TextBlock Grid.Column="2" Text="Трасса" Classes="muted" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="3" ItemsSource="{Binding SetupTracks}" SelectedItem="{Binding SelectedSetupTrack}"/>
+            <Button Grid.Column="5" Content="Обновить" Command="{Binding RefreshSetupsCommand}"/>
+            <Button Grid.Column="6" Content="Открыть папку" Command="{Binding OpenSetupFolderCommand}"/>
+          </Grid>
+        </Border>
+        <TextBlock Grid.Row="1" Text="{Binding SetupStatus}" Classes="muted" Margin="4,0"/>
+        <Grid Grid.Row="2" ColumnDefinitions="320,16,*">
+          <Border Classes="card">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Classes="thead">
+                <Grid ColumnDefinitions="*,100,64">
+                  <TextBlock Classes="label" Text="ФАЙЛ"/>
+                  <TextBlock Grid.Column="1" Classes="label" Text="ИЗМЕНЁН"/>
+                  <TextBlock Grid.Column="2" Classes="label" Text="РАЗМЕР"/>
+                </Grid>
+              </Border>
+              <ListBox Classes="table" ItemsSource="{Binding SetupFiles}" SelectedItem="{Binding SelectedSetupFile}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SetupFileRow">
+                    <Border Classes="row compact" Padding="14,0">
+                      <Grid ColumnDefinitions="*,100,64" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                        <TextBlock Grid.Column="1" Classes="muted mono" FontSize="12" Text="{Binding ModifiedText}"/>
+                        <TextBlock Grid.Column="2" Classes="muted mono" FontSize="12" Text="{Binding SizeText}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </DockPanel>
+          </Border>
+
+          <Border Grid.Column="2" Classes="card">
+            <DockPanel>
+              <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,6">
+                <Expander Header="Исходный JSON">
+                  <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding SetupJson}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                               Foreground="{DynamicResource Text3Brush}" TextWrapping="Wrap" Margin="12,8"/>
+                  </ScrollViewer>
+                </Expander>
+              </Border>
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding SetupSections}" Margin="16">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SetupSection">
+                      <Border Width="320" Margin="0,0,14,14" Classes="card" Background="{DynamicResource BgBrush}">
+                        <StackPanel>
+                          <Border Classes="cardhead" Background="{DynamicResource Surface2Brush}" Padding="16,10">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                          </Border>
+                          <ItemsControl ItemsSource="{Binding Items}" Margin="16,10,16,14">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:SetupValue">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                                  <TextBlock Text="{Binding Key}" Classes="secondary" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
+                                  <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="mono" FontSize="14" FontWeight="SemiBold"/>
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
                       </Border>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </ScrollViewer>
-            </Grid>
+            </DockPanel>
           </Border>
-        </Panel>
+        </Grid>
+      </Grid>
 
-        <!-- PAGE 1 — STINTS -->
-        <Panel IsVisible="{Binding IsPage1}" Margin="16">
+      <!-- ============ 5 · КАРТА ============ -->
+      <Grid IsVisible="{Binding IsPage5}" ColumnDefinitions="*,260" ColumnSpacing="16">
+        <Border Classes="card">
           <Grid RowDefinitions="Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,*,Auto,80,Auto,60,Auto" ColumnSpacing="12">
-                <TextBlock Text="Notes" Classes="muted" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="1" PlaceholderText="stint notes" Text="{Binding EditNotes}"/>
-                <TextBlock Grid.Column="2" Text="Fuel (L)" Classes="muted" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="3" Width="80" Text="{Binding EditFuel}"/>
-                <TextBlock Grid.Column="4" Text="Laps" Classes="muted" VerticalAlignment="Center"/>
-                <TextBox Grid.Column="5" Width="60" Text="{Binding EditLaps}"/>
-                <Button Grid.Column="6" Content="Save" Command="{Binding SaveStintCommand}" Classes="primary" Margin="8,0,0,0"/>
-              </Grid>
-            </Border>
-            <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" ClipToBounds="True">
-              <Grid RowDefinitions="Auto,*">
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="0,0,0,1" Padding="16,12">
-                  <Grid ColumnDefinitions="110,42,88,88,88,88,76,52">
-                    <TextBlock Text="DRIVER" Classes="label"/>
-                    <TextBlock Grid.Column="1" Text="№" Classes="label"/>
-                    <TextBlock Grid.Column="2" Text="START REAL" Classes="label"/>
-                    <TextBlock Grid.Column="3" Text="START GAME" Classes="label"/>
-                    <TextBlock Grid.Column="4" Text="END REAL" Classes="label"/>
-                    <TextBlock Grid.Column="5" Text="END GAME" Classes="label"/>
-                    <TextBlock Grid.Column="6" Text="DURATION" Classes="label"/>
-                    <TextBlock Grid.Column="7" Text="LAP" Classes="label"/>
-                  </Grid>
-                </Border>
-                <ListBox Grid.Row="1" ItemsSource="{Binding Stints}" SelectedItem="{Binding SelectedStint}">
-                  <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:StintRow">
-                      <Border BorderBrush="#1F2229" BorderThickness="0,0,0,1" Padding="16,9">
-                        <Grid ColumnDefinitions="110,42,88,88,88,88,76,52">
-                          <TextBlock Grid.Column="0" Text="{Binding Driver}" FontWeight="Medium"
-                                     Foreground="{Binding IsOpen, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2962FF;#E8EAED}"
-                                     FontSize="13"/>
-                          <TextBlock Grid.Column="1" Text="{Binding Ordinal}" Foreground="#70757A" FontSize="13"/>
-                          <TextBlock Grid.Column="2" Text="{Binding StartReal}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="3" Text="{Binding StartGame}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="4" Text="{Binding EndReal}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="5" Text="{Binding EndGame}" Foreground="#9DA1A6" FontSize="13"/>
-                          <TextBlock Grid.Column="6" Text="{Binding Duration}" Foreground="#E8EAED" FontWeight="Medium" FontSize="13"/>
-                          <TextBlock Grid.Column="7" Text="{Binding LapNumber}" Foreground="#9DA1A6" FontSize="13"/>
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
-              </Grid>
-            </Border>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 2 — LIVE TELEMETRY -->
-        <Panel IsVisible="{Binding IsPage2}" Margin="16">
-          <Grid RowDefinitions="Auto,Auto,*" RowSpacing="16">
-            <!-- Header -->
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,10">
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="16">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="ТЕЛЕМЕТРИЯ" Classes="label"/>
-                  <TextBlock Text="{Binding TelemetryDriverName}" FontSize="15" FontWeight="Medium" Foreground="#E8EAED"/>
-                </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding TelemetryStatus}" FontSize="13" Foreground="#C8CACD" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding TelemetryRateText}" FontSize="13" Foreground="#C8CACD" VerticalAlignment="Center"/>
-                <Button Grid.Column="3" Content="Очистить" Command="{Binding ClearTelemetryCommand}" Classes="secondary"/>
-              </Grid>
-            </Border>
-
-            <!-- Gauges Row -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="16">
-              <!-- Gas Gauge -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
-                <StackPanel>
-                  <TextBlock Text="ГАЗ" Classes="label" Foreground="#2EBD93"/>
-                  <TextBlock Text="{Binding GasText}" FontSize="32" FontWeight="Bold" Foreground="#2EBD93" Margin="0,8,0,0"/>
-                  <Border Height="8" Background="#2EBD93" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
-                </StackPanel>
-              </Border>
-
-              <!-- Brake Gauge -->
-              <Border Grid.Column="1" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
-                <StackPanel>
-                  <TextBlock Text="ТОРМОЗ" Classes="label" Foreground="#E84855"/>
-                  <TextBlock Text="{Binding BrakeText}" FontSize="32" FontWeight="Bold" Foreground="#E84855" Margin="0,8,0,0"/>
-                  <Border Height="8" Background="#E84855" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
-                </StackPanel>
-              </Border>
-
-              <!-- Steer Gauge -->
-              <Border Grid.Column="2" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16,12">
-                <StackPanel>
-                  <TextBlock Text="РУЛЬ" Classes="label" Foreground="#4FC3F7"/>
-                  <TextBlock Text="{Binding SteerText}" FontSize="32" FontWeight="Bold" Foreground="#4FC3F7" Margin="0,8,0,0"/>
-                  <Border Height="8" Background="#4FC3F7" Opacity="0.2" CornerRadius="4" Margin="0,8,0,0"/>
-                </StackPanel>
-              </Border>
-            </Grid>
-
-            <!-- Charts -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,280" ColumnSpacing="16">
-              <StackPanel Spacing="16">
-                <!-- Pedals Chart -->
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="12,8">
-                  <Grid RowDefinitions="Auto,*">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="ПЕДАЛИ" Classes="label"/>
-                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="Газ" FontSize="12" Foreground="#2EBD93"/>
-                        <TextBlock Text="Тормоз" FontSize="12" Foreground="#E84855"/>
-                      </StackPanel>
-                    </Grid>
-                    <Canvas Grid.Row="1" x:Name="GasCanvas" Height="160" ClipToBounds="True" Background="Transparent" Margin="0,8,0,0"/>
-                  </Grid>
-                </Border>
-
-                <!-- Steering Chart -->
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="12,8">
-                  <Grid RowDefinitions="Auto,*">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="РУЛЬ" Classes="label"/>
-                      <TextBlock Grid.Column="1" Text="Угол, ±40°" FontSize="12" Foreground="#4FC3F7"/>
-                    </Grid>
-                    <Canvas Grid.Row="1" x:Name="SteerCanvas" Height="160" ClipToBounds="True" Background="Transparent" Margin="0,8,0,0"/>
-                  </Grid>
-                </Border>
-              </StackPanel>
-
-              <!-- Stats Sidebar -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="16">
-                <StackPanel Spacing="14">
-                  <TextBlock Text="СТАТИСТИКА" Classes="label"/>
-                  <StackPanel>
-                    <TextBlock Text="Средний газ" Classes="muted" FontSize="11"/>
-                    <TextBlock Text="{Binding TelemetryAvgGas}" FontSize="18" FontWeight="Bold" Foreground="#2EBD93"/>
-                  </StackPanel>
-                  <StackPanel>
-                    <TextBlock Text="Средний тормоз" Classes="muted" FontSize="11"/>
-                    <TextBlock Text="{Binding TelemetryAvgBrake}" FontSize="18" FontWeight="Bold" Foreground="#E84855"/>
-                  </StackPanel>
-                  <StackPanel>
-                    <TextBlock Text="Макс. угол руля" Classes="muted" FontSize="11"/>
-                    <TextBlock Text="{Binding TelemetryMaxSteer}" FontSize="18" FontWeight="Bold" Foreground="#4FC3F7"/>
-                  </StackPanel>
-                  <StackPanel>
-                    <TextBlock Text="Время на тормозе" Classes="muted" FontSize="11"/>
-                    <TextBlock Text="{Binding TelemetryBrakeTime}" FontSize="18" FontWeight="Bold" Foreground="#C8CACD"/>
-                  </StackPanel>
-                  <StackPanel>
-                    <TextBlock Text="Полный газ" Classes="muted" FontSize="11"/>
-                    <TextBlock Text="{Binding TelemetryFullThrottleTime}" FontSize="18" FontWeight="Bold" Foreground="#C8CACD"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-            </Grid>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 3 — RADAR -->
-        <Panel IsVisible="{Binding IsPage3}" Margin="16">
-          <Grid RowDefinitions="Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <StackPanel Spacing="6">
-                <TextBlock Text="Real-Time Radar" Classes="h2"/>
-                <TextBlock Text="Shows cars around your position (60m range)" Classes="muted"/>
+            <Border Classes="cardhead" Padding="16,12">
+              <StackPanel Orientation="Horizontal" Spacing="14">
+                <TextBlock Classes="h2" Text="Карта трассы"/>
+                <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
               </StackPanel>
             </Border>
-            <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
-              <Panel>
-                <Canvas x:Name="RadarCanvas" Background="#0A0C10"/>
-                <TextBlock x:Name="RadarStatus" Foreground="#70757A" FontSize="12" Margin="16" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
-              </Panel>
-            </Border>
+            <Canvas Grid.Row="1" x:Name="MapCanvas" Background="Transparent" ClipToBounds="True"/>
           </Grid>
-        </Panel>
-
-        <!-- PAGE 4 — SETUP -->
-        <Panel IsVisible="{Binding IsPage5}" Margin="16">
-          <Grid RowDefinitions="Auto,Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,200,Auto,220,*,Auto,Auto" ColumnSpacing="12">
-                <TextBlock Text="Car" Classes="muted" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding SetupCars}" SelectedItem="{Binding SelectedSetupCar}"/>
-                <TextBlock Grid.Column="2" Text="Track" Classes="muted" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="3" ItemsSource="{Binding SetupTracks}" SelectedItem="{Binding SelectedSetupTrack}"/>
-                <Button Grid.Column="5" Content="Refresh" Command="{Binding RefreshSetupsCommand}" Classes="secondary"/>
-                <Button Grid.Column="6" Content="Open Folder" Command="{Binding OpenSetupFolderCommand}" Classes="secondary" Margin="8,0,0,0"/>
-              </Grid>
-            </Border>
-            <TextBlock Grid.Row="1" Text="{Binding SetupStatus}" Classes="muted" Margin="4,8,4,4"/>
-            <Grid Grid.Row="2" ColumnDefinitions="320,16,*">
-              <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                <Grid RowDefinitions="Auto,*">
-                  <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="0,0,0,1" Padding="16,12">
-                    <Grid ColumnDefinitions="*,100,72">
-                      <TextBlock Text="FILE" Classes="label"/>
-                      <TextBlock Grid.Column="1" Text="MODIFIED" Classes="label"/>
-                      <TextBlock Grid.Column="2" Text="SIZE" Classes="label"/>
-                    </Grid>
-                  </Border>
-                  <ListBox Grid.Row="1" ItemsSource="{Binding SetupFiles}" SelectedItem="{Binding SelectedSetupFile}">
-                    <ListBox.ItemTemplate>
-                      <DataTemplate x:DataType="vm:SetupFileRow">
-                        <Border Padding="16,10" BorderBrush="#1F2229" BorderThickness="0,0,0,1">
-                          <Grid ColumnDefinitions="*,100,72">
-                            <TextBlock Text="{Binding FileName}" FontSize="13" Foreground="#E8EAED" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="1" Text="{Binding ModifiedText}" FontSize="12" Foreground="#70757A"/>
-                            <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="12" Foreground="#70757A"/>
-                          </Grid>
-                        </Border>
-                      </DataTemplate>
-                    </ListBox.ItemTemplate>
-                  </ListBox>
-                </Grid>
-              </Border>
-
-              <Border Grid.Column="2" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                <DockPanel>
-                  <Border DockPanel.Dock="Bottom" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="0,1,0,0" Padding="8,6">
-                    <Expander Header="RAW JSON">
-                      <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
-                        <TextBlock Text="{Binding SetupJson}" FontFamily="JetBrains Mono, Cascadia Code, Consolas, monospace"
-                                   FontSize="11" Foreground="#70757A" TextWrapping="Wrap" Margin="12,8"/>
-                      </ScrollViewer>
-                    </Expander>
-                  </Border>
-                  <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding SetupSections}" Margin="16">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                          <WrapPanel/>
-                        </ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:SetupSection">
-                          <Border Width="330" Margin="0,0,12,12" CornerRadius="4"
-                                  Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" ClipToBounds="True">
-                            <StackPanel>
-                              <Border Background="#1A1D23" Padding="16,12" BorderBrush="#1F2229" BorderThickness="0,0,0,1">
-                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED"/>
-                              </Border>
-                              <ItemsControl ItemsSource="{Binding Items}" Margin="16,14,16,16">
-                                <ItemsControl.ItemTemplate>
-                                  <DataTemplate x:DataType="vm:SetupValue">
-                                    <Grid ColumnDefinitions="*,Auto" Margin="0,4">
-                                      <TextBlock Text="{Binding Key}" FontSize="12" Foreground="#70757A" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
-                                      <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" FontWeight="Medium" Foreground="#C8CACD"/>
-                                    </Grid>
-                                  </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                              </ItemsControl>
-                            </StackPanel>
-                          </Border>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </ScrollViewer>
-                </DockPanel>
-              </Border>
-            </Grid>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 5 — MAP -->
-        <Panel IsVisible="{Binding IsPage4}" Margin="16">
-          <Grid ColumnDefinitions="*,240">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-              <Grid RowDefinitions="Auto,*">
-                <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="0,0,0,1" Padding="16,12">
-                  <StackPanel Orientation="Horizontal" Spacing="16">
-                    <TextBlock Text="Track Map" Classes="h2"/>
-                    <TextBlock Text="{Binding MapTrackName}" Classes="muted"/>
-                  </StackPanel>
-                </Border>
-                <Canvas Grid.Row="1" x:Name="MapCanvas" Background="#0A0C10"/>
-              </Grid>
-            </Border>
-            <Border Grid.Column="1" Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Margin="12,0,0,0" Padding="20">
-              <StackPanel Spacing="16">
-                <TextBlock Text="WEATHER" Classes="label"/>
-                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <TextBlock Text="Air" FontSize="13" Foreground="#70757A"/>
-                  <TextBlock Grid.Column="1" Text="{Binding WeatherAir}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED"/>
-                  <TextBlock Grid.Row="1" Text="Track" FontSize="13" Foreground="#70757A" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding WeatherTrack}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="2" Text="Rain" FontSize="13" Foreground="#70757A" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WeatherRain}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="3" Text="Clouds" FontSize="13" Foreground="#70757A" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding WeatherClouds}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="4" Text="Wetness" FontSize="13" Foreground="#70757A" Margin="0,12,0,0"/>
-                  <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding WeatherWetness}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED" Margin="0,12,0,0"/>
-                </Grid>
-              </StackPanel>
-            </Border>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 6 — SERVER -->
-        <Panel IsVisible="{Binding IsPage6}" Margin="16">
-          <Grid RowDefinitions="Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Text="Server" Classes="h2" VerticalAlignment="Center"/>
-                  <Border CornerRadius="3" Padding="6,3" Background="{Binding IsServerRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#1A3A2E;#1A1D23}">
-                    <TextBlock Text="{Binding ServerStatus}" FontSize="11" FontWeight="Medium"
-                               Foreground="{Binding IsServerRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2962FF;#70757A}"/>
-                  </Border>
-                </StackPanel>
-                <TextBox Grid.Column="1" PlaceholderText="Path to AccEndurance.Server.exe" Text="{Binding ServerExePath}" Margin="16,0"/>
-                <Button Grid.Column="2" Content="Start" Command="{Binding StartServerCommand}"
-                        Classes="primary" IsEnabled="{Binding !IsServerRunning}" Margin="0,0,8,0"/>
-                <Button Grid.Column="3" Content="Stop" Command="{Binding StopServerCommand}"
-                        Classes="secondary" IsEnabled="{Binding IsServerRunning}"/>
-              </Grid>
-            </Border>
-            <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Padding="16">
-              <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock Text="{Binding ServerLogs}" FontFamily="JetBrains Mono, Cascadia Code, Consolas, monospace" FontSize="12"
-                           Foreground="#9DA1A6" TextWrapping="Wrap" Background="#0A0C10" Padding="12"/>
-              </ScrollViewer>
-            </Border>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 7 — AGENT -->
-        <Panel IsVisible="{Binding IsPage7}" Margin="16">
-          <Grid RowDefinitions="Auto,*">
-            <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4,4,0,0" Padding="16,12">
-              <Grid ColumnDefinitions="Auto,200,Auto,80,Auto,Auto,*,Auto,Auto">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Text="Agent" Classes="h2" VerticalAlignment="Center"/>
-                  <Border CornerRadius="3" Padding="6,3" Background="{Binding IsAgentRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#1A3A2E;#1A1D23}">
-                    <TextBlock Text="{Binding AgentStatus}" FontSize="11" FontWeight="Medium"
-                               Foreground="{Binding IsAgentRunning, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2962FF;#70757A}"/>
-                  </Border>
-                </StackPanel>
-                <TextBox Grid.Column="1" PlaceholderText="Path to Agent.exe" Text="{Binding AgentExePath}" Margin="16,0,0,0"/>
-                <TextBlock Grid.Column="2" Text="DriverIndex" Classes="muted" VerticalAlignment="Center" Margin="12,0"/>
-                <TextBox Grid.Column="3" Text="{Binding SelectedDriverIndex}" Width="80"/>
-                <CheckBox Grid.Column="4" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center" Margin="12,0"/>
-                <TextBlock Grid.Column="5" Text="Use Fake Data" Classes="muted" VerticalAlignment="Center"/>
-                <Button Grid.Column="7" Content="Start" Command="{Binding StartAgentCommand}"
-                        Classes="primary" IsEnabled="{Binding !IsAgentRunning}" Margin="0,0,8,0"/>
-                <Button Grid.Column="8" Content="Stop" Command="{Binding StopAgentCommand}"
-                        Classes="secondary" IsEnabled="{Binding IsAgentRunning}"/>
-              </Grid>
-            </Border>
-            <Border Grid.Row="1" Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Padding="16">
-              <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <TextBlock Text="{Binding AgentLogs}" FontFamily="JetBrains Mono, Cascadia Code, Consolas, monospace" FontSize="12"
-                           Foreground="#9DA1A6" TextWrapping="Wrap" Background="#0A0C10" Padding="12"/>
-              </ScrollViewer>
-            </Border>
-          </Grid>
-        </Panel>
-
-        <!-- PAGE 8 — SETTINGS -->
-        <Panel IsVisible="{Binding IsPage8}" Margin="16">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="24" Margin="0,0,0,20">
-
-              <!-- Header -->
-              <StackPanel Spacing="6">
-                <TextBlock Text="Settings" Classes="h1"/>
-                <TextBlock Text="ACC Endurance Tracker Configuration" Classes="muted"/>
-              </StackPanel>
-
-              <!-- Car Number Section -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                <StackPanel Spacing="16">
-                  <TextBlock Text="CAR IDENTIFICATION" Classes="label"/>
-                  <TextBlock Text="Enter your car number to highlight it in the standings and on the map." FontSize="13" Foreground="#9DA1A6" TextWrapping="Wrap"/>
-                  <Grid ColumnDefinitions="140,120,*">
-                    <TextBlock Text="Your car number" Foreground="#70757A" FontSize="13" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" Width="100" Text="{Binding OurCarNumber}" PlaceholderText="e.g. 911"/>
-                  </Grid>
-                </StackPanel>
-              </Border>
-
-              <!-- Export Section -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                <StackPanel Spacing="16">
-                  <TextBlock Text="DATA EXPORT" Classes="label"/>
-                  <TextBlock Text="Export session data for analysis in external tools." FontSize="13" Foreground="#9DA1A6" TextWrapping="Wrap"/>
-                  <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Content="Export to JSON" Command="{Binding ExportToJsonCommand}" Classes="primary"/>
-                    <Button Content="Export to CSV" Command="{Binding ExportToCsvCommand}" Classes="secondary"/>
-                    <Button Content="Clear AutoSave" Command="{Binding ClearAutoSaveCommand}" Classes="secondary"/>
-                  </StackPanel>
-                  <TextBlock Text="Files will be saved to your Downloads folder." FontSize="12" Foreground="#70757A"/>
-                </StackPanel>
-              </Border>
-
-              <!-- Update Section -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                <StackPanel Spacing="16">
-                  <TextBlock Text="UPDATES" Classes="label"/>
-
-                  <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" RowSpacing="8">
-                    <TextBlock Text="Current version" Foreground="#70757A" FontSize="13"/>
-                    <TextBlock Grid.Column="1" Text="{Binding CurrentVersionText}" FontSize="13" FontWeight="Medium" Foreground="#E8EAED"/>
-                    <TextBlock Grid.Row="1" Text="Latest version" Foreground="#70757A" FontSize="13"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LatestVersionText}" FontSize="13" FontWeight="Medium"
-                               Foreground="{Binding IsUpdateAvailable, Converter={x:Static conv:BoolToBrushConverter.Instance}, ConverterParameter=#2962FF;#E8EAED}"/>
-                  </Grid>
-
-                  <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Content="Check for Updates" Command="{Binding CheckForUpdatesCommand}"
-                            Classes="primary" IsEnabled="{Binding !IsCheckingUpdate}"/>
-                    <Button Content="Install Update" Command="{Binding InstallUpdateCommand}"
-                            Classes="secondary" IsEnabled="{Binding IsUpdateAvailable}"/>
-                    <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Width="200" Height="6"
-                                 IsVisible="{Binding IsCheckingUpdate}" VerticalAlignment="Center"/>
-                  </StackPanel>
-
-                  <Border Background="#0A0C10" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="14">
-                    <TextBlock Text="{Binding UpdateStatus}" FontSize="12" Foreground="#9DA1A6" TextWrapping="Wrap"/>
-                  </Border>
-                </StackPanel>
-              </Border>
-
-              <!-- Info Section -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                <StackPanel Spacing="16">
-                  <TextBlock Text="INFORMATION" Classes="label"/>
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="GitHub: https://github.com/Ilya22865/acc-endurance-tracker"
-                               FontSize="12" Foreground="#2962FF"/>
-                    <TextBlock Text="License: MIT" FontSize="12" Foreground="#70757A"/>
-                    <TextBlock Text="Platform: .NET 10.0 + Avalonia UI" FontSize="12" Foreground="#70757A"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-
-              <!-- Features Section -->
-              <Border Background="#12141A" BorderBrush="#1F2229" BorderThickness="1" CornerRadius="4" Padding="20">
-                <StackPanel Spacing="16">
-                  <TextBlock Text="FEATURES" Classes="label"/>
-                  <StackPanel Spacing="6">
-                    <TextBlock Text="Real-time position and lap monitoring" FontSize="12" Foreground="#9DA1A6"/>
-                    <TextBlock Text="Automatic stint management" FontSize="12" Foreground="#9DA1A6"/>
-                    <TextBlock Text="Pedal and steering telemetry recording" FontSize="12" Foreground="#9DA1A6"/>
-                    <TextBlock Text="Track map visualization" FontSize="12" Foreground="#9DA1A6"/>
-                    <TextBlock Text="Built-in server and agent" FontSize="12" Foreground="#9DA1A6"/>
-                    <TextBlock Text="Session autosave and data export" FontSize="12" Foreground="#9DA1A6"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-
+        </Border>
+        <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+          <StackPanel>
+            <Border Classes="cardhead" Padding="16,12"><TextBlock Classes="h2" Text="Погода"/></Border>
+            <StackPanel Margin="16,6,16,16" Spacing="14">
+              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Температура воздуха"/>
+                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource WarnBrush}" Text="{Binding WeatherAir}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Температура трека"/>
+                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource OwnBrush}" Text="{Binding WeatherTrack}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Дождь"/>
+                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherRain}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Облачность"/>
+                <TextBlock Classes="big" FontSize="30" Text="{Binding WeatherClouds}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Влажность трека"/>
+                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherWetness}"/></StackPanel>
             </StackPanel>
-          </ScrollViewer>
-        </Panel>
+          </StackPanel>
+        </Border>
+      </Grid>
 
-        </Panel>
-      </Border>
-    </Grid>
+      <!-- ============ 6 · СЕРВЕР ============ -->
+      <Grid IsVisible="{Binding IsPage6}" RowDefinitions="Auto,*" RowSpacing="16">
+        <Border Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+              <TextBlock Classes="h2" Text="Сервер"/>
+              <Border Classes="chip" Classes.ok="{Binding IsServerRunning}"><TextBlock Text="{Binding ServerStatus}"/></Border>
+            </StackPanel>
+            <TextBox Grid.Column="1" PlaceholderText="Путь к AccEndurance.Server.exe" Text="{Binding ServerExePath}"/>
+            <Button Grid.Column="2" Content="Запустить" Command="{Binding StartServerCommand}" Classes="primary" IsEnabled="{Binding !IsServerRunning}"/>
+            <Button Grid.Column="3" Content="Остановить" Command="{Binding StopServerCommand}" IsEnabled="{Binding IsServerRunning}"/>
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="card" Padding="16">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <TextBlock Text="{Binding ServerLogs}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                       Foreground="{DynamicResource Text2Brush}" TextWrapping="Wrap"/>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <!-- ============ 7 · АГЕНТ ============ -->
+      <Grid IsVisible="{Binding IsPage7}" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+        <Border Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+              <TextBlock Classes="h2" Text="Агент"/>
+              <Border Classes="chip" Classes.ok="{Binding IsAgentRunning}"><TextBlock Text="{Binding AgentStatus}"/></Border>
+            </StackPanel>
+            <TextBox Grid.Column="1" PlaceholderText="Путь к AccEndurance.Agent.exe" Text="{Binding AgentExePath}"/>
+            <Button Grid.Column="2" Content="Запустить" Command="{Binding StartAgentCommand}" Classes="primary" IsEnabled="{Binding !IsAgentRunning}"/>
+            <Button Grid.Column="3" Content="Остановить" Command="{Binding StopAgentCommand}" IsEnabled="{Binding IsAgentRunning}"/>
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="card" Padding="16,12">
+          <Grid ColumnDefinitions="Auto,300,Auto,Auto,*" ColumnSpacing="14">
+            <TextBlock Text="Я за рулём как" Classes="muted" VerticalAlignment="Center"/>
+            <ComboBox Grid.Column="1" ItemsSource="{Binding TeamDrivers}" SelectedItem="{Binding SelectedTeamDriver}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:TeamDriverItem">
+                  <TextBlock Text="{Binding Name}"/>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button Grid.Column="2" Content="Обновить список" Command="{Binding RefreshTeamDriversCommand}"/>
+            <CheckBox Grid.Column="3" Content="Тестовые данные (без ACC)" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="4" Classes="muted" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right"
+                       Text="Агент запускают на ПК того, кто ведёт машину. Адрес сервера берётся из шапки."/>
+          </Grid>
+        </Border>
+        <Border Grid.Row="2" Classes="card" Padding="16">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <TextBlock Text="{Binding AgentLogs}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                       Foreground="{DynamicResource Text2Brush}" TextWrapping="Wrap"/>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <!-- ============ 8 · НАСТРОЙКИ ============ -->
+      <ScrollViewer IsVisible="{Binding IsPage8}" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,0,20">
+          <TextBlock Classes="h1" Text="Настройки"/>
+
+          <Border Classes="card" Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="НАША МАШИНА"/>
+              <TextBlock Classes="secondary" TextWrapping="Wrap" Text="Номер машины, которая подсвечивается в таблице, на карте и радаре. Если на сервере задан Acc:OurCarRaceNumber, он главнее."/>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Classes="muted" Text="Номер" VerticalAlignment="Center"/>
+                <TextBox Width="100" Text="{Binding OurCarNumber}" PlaceholderText="например 911"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="РАДАР"/>
+              <CheckBox Content="Зеркало лево/право" IsChecked="{Binding RadarMirror, Mode=TwoWay}"/>
+              <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="Если машина слева от вас нарисована справа — переключите."/>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="ЭКСПОРТ ДАННЫХ"/>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="В JSON" Command="{Binding ExportToJsonCommand}" Classes="primary"/>
+                <Button Content="В CSV" Command="{Binding ExportToCsvCommand}"/>
+                <Button Content="Очистить автосохранение" Command="{Binding ClearAutoSaveCommand}"/>
+              </StackPanel>
+              <TextBlock Classes="muted" FontSize="12" Text="Файлы сохраняются в папку «Загрузки»."/>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="ОБНОВЛЕНИЯ"/>
+              <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                <TextBlock Classes="muted" Text="Текущая версия"/>
+                <TextBlock Grid.Column="1" Classes="mono" Text="{Binding CurrentVersionText}"/>
+                <TextBlock Grid.Row="1" Classes="muted" Text="Последняя версия"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="mono" Text="{Binding LatestVersionText}"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button Content="Проверить обновления" Command="{Binding CheckForUpdatesCommand}" Classes="primary" IsEnabled="{Binding !IsCheckingUpdate}"/>
+                <Button Content="Установить" Command="{Binding InstallUpdateCommand}" IsEnabled="{Binding IsUpdateAvailable}"/>
+                <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Width="200" Height="6"
+                             IsVisible="{Binding IsCheckingUpdate}" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Border Classes="panel"><TextBlock Classes="secondary" FontSize="12" TextWrapping="Wrap" Text="{Binding UpdateStatus}"/></Border>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="20">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="label" Text="О ПРОГРАММЕ"/>
+              <TextBlock Classes="secondary" Text="GitHub: https://github.com/Ilya22865/acc-endurance-tracker"/>
+              <TextBlock Classes="muted" Text="Лицензия MIT · .NET 10 · Avalonia UI"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+    </Panel>
+
+    <!-- ===================== СТРОКА СОСТОЯНИЯ ===================== -->
+    <Border Grid.Row="3" Grid.ColumnSpan="2" Background="{DynamicResource RailBrush}" Padding="20,6"
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Classes="muted" FontSize="12" Text="Обновлено"/>
+          <TextBlock Classes="mono" FontSize="12" Foreground="{DynamicResource Text2Brush}" Text="{Binding LastUpdate}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="{Binding ServerUrl}"/>
+      </Grid>
+    </Border>
   </Grid>
 </Window>

@@ -25,6 +25,7 @@ public sealed class TelemetryChartRenderer
     private readonly double _fixedMax;
     private readonly bool _autoScaleSymmetric;
     private readonly bool _percent;
+    private readonly bool _showGrid;
 
     private readonly Line[] _hLines = new Line[GridLines];
     private readonly TextBlock[] _hLabels = new TextBlock[GridLines];
@@ -38,8 +39,9 @@ public sealed class TelemetryChartRenderer
     /// <param name="percent">подписи оси в процентах (педали); иначе числа (руль)</param>
     /// <param name="autoScaleSymmetric">симметричная ось ±max с автоподбором (руль: единицы могут быть разные)</param>
     public TelemetryChartRenderer(Canvas canvas, Color color, double min, double max,
-        bool percent, bool autoScaleSymmetric)
+        bool percent, bool autoScaleSymmetric, bool showGrid = true)
     {
+        _showGrid = showGrid;
         _canvas = canvas;
         _color = color;
         _fixedMin = min;
@@ -47,8 +49,8 @@ public sealed class TelemetryChartRenderer
         _percent = percent;
         _autoScaleSymmetric = autoScaleSymmetric;
 
-        var grid = new SolidColorBrush(Color.FromRgb(0x23, 0x27, 0x2F));
-        var text = new SolidColorBrush(Color.FromRgb(0x70, 0x75, 0x7A));
+        var grid = new SolidColorBrush(Palette.Line);
+        var text = new SolidColorBrush(Palette.Text3);
 
         for (int i = 0; i < GridLines; i++)
         {
@@ -65,10 +67,10 @@ public sealed class TelemetryChartRenderer
             _canvas.Children.Add(_vLabels[i]);
         }
 
-        _zeroLine.Stroke = new SolidColorBrush(Color.FromRgb(0x4A, 0x52, 0x60));
+        _zeroLine.Stroke = new SolidColorBrush(Palette.LineStrong);
         _zeroLine.StrokeThickness = 1;
         _zeroLine.StrokeDashArray = new AvaloniaList<double> { 4, 4 };
-        _zeroLine.IsVisible = autoScaleSymmetric;
+        _zeroLine.IsVisible = autoScaleSymmetric && showGrid;
         _canvas.Children.Add(_zeroLine);
 
         _fill.Fill = new SolidColorBrush(Color.FromArgb(0x55, color.R, color.G, color.B));
@@ -80,9 +82,18 @@ public sealed class TelemetryChartRenderer
         _canvas.Children.Add(_line);
 
         _emptyText.Text = "Нет данных — запустите агент (вкладка «Агент»)";
-        _emptyText.FontSize = 12;
+        _emptyText.FontSize = 13;
+        _emptyText.IsVisible = showGrid;
         _emptyText.Foreground = text;
         _canvas.Children.Add(_emptyText);
+
+        if (!showGrid)
+        {
+            foreach (var l in _hLines) l.IsVisible = false;
+            foreach (var l in _vLines) l.IsVisible = false;
+            foreach (var t in _hLabels) t.IsVisible = false;
+            foreach (var t in _vLabels) t.IsVisible = false;
+        }
     }
 
     public void Render(IReadOnlyList<TelemetryPoint> data, double now, double windowSeconds,
@@ -115,7 +126,7 @@ public sealed class TelemetryChartRenderer
         double Y(double v) => y1 - Math.Clamp((v - min) / (max - min), 0, 1) * ph;
 
         // --- сетка по Y ---
-        for (int i = 0; i < GridLines; i++)
+        for (int i = 0; _showGrid && i < GridLines; i++)
         {
             var frac = i / (double)(GridLines - 1);
             var y = y1 - frac * ph;
@@ -128,7 +139,7 @@ public sealed class TelemetryChartRenderer
         }
 
         // --- сетка по X (секунды назад) ---
-        for (int i = 0; i < _vLines.Length; i++)
+        for (int i = 0; _showGrid && i < _vLines.Length; i++)
         {
             var frac = i / (double)(_vLines.Length - 1);
             var x = x0 + frac * pw;
@@ -140,7 +151,7 @@ public sealed class TelemetryChartRenderer
             Canvas.SetTop(_vLabels[i], y1 + 3);
         }
 
-        if (_autoScaleSymmetric)
+        if (_autoScaleSymmetric && _showGrid)
         {
             var yz = Y(0);
             _zeroLine.StartPoint = new Point(x0, yz);
@@ -159,7 +170,7 @@ public sealed class TelemetryChartRenderer
         {
             _line.IsVisible = false;
             _fill.IsVisible = false;
-            _emptyText.IsVisible = true;
+            _emptyText.IsVisible = _showGrid;
             Canvas.SetLeft(_emptyText, x0 + 12);
             Canvas.SetTop(_emptyText, y0 + ph / 2 - 8);
             return;

@@ -45,6 +45,21 @@ public sealed class SessionStateService
     private TimeSpan _probeSecondField;
     private bool _secondFieldIsRemaining = true;
 
+    // Часы сессии: сравниваем ход «игрового» времени с реальным (см. SessionClock)
+    private readonly SessionClock _clock = new();
+    private TimeSpan _remainingReal;
+    private DateTime _lastClockAdvanceAt = DateTime.MinValue;
+    private TimeSpan _lastElapsed;
+
+    // История прохождения трассы каждой машиной — по ней считаются отрывы
+    private readonly Dictionary<int, CarTimeline> _timelines = new();
+
+    // Флаги: данные агента (память ACC на ПК пилота) и события Broadcasting
+    private AgentFlagsState? _agentFlags;
+    private DateTime _lastAccidentAt = DateTime.MinValue;
+    private string _lastEventText = "";
+    private DateTime _lastEventAt = DateTime.MinValue;
+
     private readonly List<(float S, float X, float Y)> _currentLapPoints = new();
     private bool _lapDirty;
     private List<OutlinePointDto>? _recordedOutline;
@@ -110,7 +125,15 @@ public sealed class SessionStateService
     {
         driverIndex = -1;
         displayName = "";
-        if (_driverMapping.TryGetValue(agentId, out var entry))
+        var found = _driverMapping.TryGetValue(agentId, out var entry);
+        if (!found)
+        {
+            // Старые агенты регистрировались как «PC», а пачки слали как «PC:0» — сервер не находил регистрацию
+            // и отвечал 409 на каждую пачку, поэтому телеметрия не доходила до клиента.
+            var colon = agentId.LastIndexOf(':');
+            if (colon > 0) found = _driverMapping.TryGetValue(agentId.Substring(0, colon), out entry);
+        }
+        if (found && entry != null)
         {
             var parts = entry.Split('|');
             if (parts.Length >= 2 && int.TryParse(parts[0], out driverIndex))
@@ -138,6 +161,7 @@ public sealed class SessionStateService
             _realtime.SessionTime = update.SessionTime;
             _realtime.SessionEndTime = update.SessionEndTime;
             _realtime.RemainingTime = ComputeRemaining(update);
+            _realtime.IsRace = update.SessionType == BC.SessionType.Race;
             _realtime.TimeOfDay = update.TimeOfDay;
             _realtime.AmbientTemp = update.AmbientTemp;
             _realtime.TrackTemp = update.TrackTemp;
@@ -153,27 +177,46 @@ public sealed class SessionStateService
 
     // Вызывать под _lock.
     // ACC присылает вторым значением время, и в разных описаниях протокола оно названо то
-    // «SessionEndTime», то «RemainingTime». Раньше клиент считал «осталось» как EndTime - SessionTime;
-    // если это поле уже «осталось», получалась отрицательная разность, и таймер не обновлялся вообще.
-    // Определяем смысл по поведению: пока игровое время растёт, «осталось» убывает, а «время конца» — нет.
+    // «SessionEndTime», то «RemainingTime». Смысл определяем по поведению: пока «прошло» растёт,
+    // «осталось» убывает на столько же, а «время конца» остаётся постоянным.
+    // Затем проверяем, идут ли часы ACC в реальном времени: если игровое время ускорено,
+    // таймер «до конца» бежал бы быстрее настоящего — делим на измеренный коэффициент.
     private TimeSpan ComputeRemaining(RealtimeUpdate update)
     {
-        var tolerance = TimeSpan.FromMilliseconds(10);
-        if (_timeProbeValid && update.SessionTime > _probeSessionTime)
+        var now = DateTime.UtcNow;
+        var e = update.SessionTime;
+        var f = update.SessionEndTime;
+
+        if (!_timeProbeValid || e < _probeSessionTime - TimeSpan.FromSeconds(1))
         {
-            var delta = update.SessionEndTime - _probeSecondField;
-            if (delta < -tolerance) _secondFieldIsRemaining = true;
-            else if (delta > tolerance) _secondFieldIsRemaining = false;
+            _timeProbeValid = true;
+            _probeSessionTime = e;
+            _probeSecondField = f;
+            _clock.Reset();
         }
-        _timeProbeValid = true;
-        _probeSessionTime = update.SessionTime;
-        _probeSecondField = update.SessionEndTime;
+        else if (e > _probeSessionTime + TimeSpan.FromMilliseconds(50))
+        {
+            var dE = (e - _probeSessionTime).TotalMilliseconds;
+            var dF = (f - _probeSecondField).TotalMilliseconds;
+            if (Math.Abs(dF + dE) < dE * 0.5) _secondFieldIsRemaining = true;
+            else if (Math.Abs(dF) < dE * 0.1) _secondFieldIsRemaining = false;
+            _probeSessionTime = e;
+            _probeSecondField = f;
+        }
 
-        if (_secondFieldIsRemaining)
-            return update.SessionEndTime < TimeSpan.Zero ? TimeSpan.Zero : update.SessionEndTime;
+        if (e > _lastElapsed + TimeSpan.FromMilliseconds(10)) _lastClockAdvanceAt = now;
+        _lastElapsed = e;
+        _clock.Feed(e.TotalMilliseconds, now);
 
-        var left = update.SessionEndTime - update.SessionTime;
-        return left < TimeSpan.Zero ? TimeSpan.Zero : left;
+        var raw = _secondFieldIsRemaining ? f : f - e;
+        if (raw < TimeSpan.Zero) raw = TimeSpan.Zero;
+
+        var scale = _clock.Scale;
+        _realtime.ClockScale = scale;
+        _remainingReal = scale > 1.02 || scale < 0.98
+            ? TimeSpan.FromMilliseconds(raw.TotalMilliseconds / scale)
+            : raw;
+        return _remainingReal;
     }
 
     // Вызывать под _lock. Новая сессия (другой Event/Session/тип) — старые стинты, позиции и
@@ -191,6 +234,10 @@ public sealed class SessionStateService
         _lapDirty = false;
         _currentLapPoints.Clear();
         _timeProbeValid = false;
+        _timelines.Clear();
+        _clock.Reset();
+        _lastAccidentAt = DateTime.MinValue;
+        _lastEventText = "";
     }
 
     public void ProcessRealtimeCarUpdate(RealtimeCarUpdate update)
@@ -229,12 +276,22 @@ public sealed class SessionStateService
             state.SpeedMps = update.Kmh / 3.6;
             state.WorldX = update.WorldPosX;
             state.WorldY = update.WorldPosY;
+            state.Yaw = update.Yaw;
             state.DeltaMs = update.Delta;
             // раньше эти поля никогда не заполнялись, и колонки «Последний/Лучший круг» были пустыми
             state.LastLapMs = ValidLapMs(update.LastLap);
             state.BestLapMs = ValidLapMs(update.BestSessionLap);
 
-            state.CumulativeSpline = update.Laps + update.SplinePosition;
+            if (!_timelines.TryGetValue(update.CarIndex, out var timeline))
+            {
+                timeline = new CarTimeline();
+                _timelines[update.CarIndex] = timeline;
+            }
+            timeline.Feed(update.Laps, update.SplinePosition, DateTime.UtcNow.Ticks);
+            timeline.UpdateHeading(update.WorldPosX, update.WorldPosY, update.Kmh);
+            state.CumulativeSpline = timeline.CumNow;
+            state.HeadingX = timeline.HeadingX;
+            state.HeadingY = timeline.HeadingY;
 
             if (_entryList.TryGetValue(update.CarIndex, out var car))
             {
@@ -256,7 +313,6 @@ public sealed class SessionStateService
                 RecordCarPosition(update);
             }
 
-            ComputeGaps(state);
         }
 
         MaybeBroadcast();
@@ -567,30 +623,71 @@ public sealed class SessionStateService
             _outlineRevision, completedLap, outline.Count, extX, extY);
     }
 
-    // Вызывать под _lock.
-    private void ComputeGaps(CarStateDto updatedCar)
+    // Вызывать под _lock. cars — копии, отсортированные по позиции.
+    // Отрыв = через сколько секунд машина B проезжает ту точку трассы, где только что была машина A.
+    // Раньше он считался как «доля круга × длина / скорость лидера», что при медленном лидере
+    // (питы, поворот) давало заметно неверные цифры.
+    private void ComputeAllGaps(List<CarStateDto> cars)
     {
-        // Сбрасываем старое значение: раньше при невозможности расчёта (круг отставания,
-        // лидер, нет данных о трассе) в таблице оставался устаревший отрыв.
-        updatedCar.GapSeconds = null;
+        var chain = cars.Where(c => c.Position > 0 && _timelines.ContainsKey(c.CarIndex)).OrderBy(c => c.Position).ToList();
+        if (chain.Count == 0) return;
 
-        if (_carStates.Count < 2) return;
+        var leader = chain[0];
+        var our = chain.FirstOrDefault(c => c.IsOurCar);
+        var trackMeters = _realtime.TrackMeters;
 
-        var leadCar = _carStates.Values
-            .Where(c => c.Position > 0)
-            .OrderBy(c => c.Position)
-            .FirstOrDefault();
-
-        if (leadCar == null || leadCar.CarIndex == updatedCar.CarIndex) return;
-
-        if (leadCar.Kmh > 0 && _realtime.TrackMeters > 0)
+        for (int i = 0; i < chain.Count; i++)
         {
-            var gapFraction = leadCar.CumulativeSpline - updatedCar.CumulativeSpline;
-            if (gapFraction >= 0 && gapFraction < 1.0)
+            var car = chain[i];
+
+            if (i > 0)
             {
-                updatedCar.GapSeconds = gapFraction * _realtime.TrackMeters / (leadCar.Kmh / 3.6);
+                var (sec, laps) = GapBetween(leader, car, trackMeters);
+                car.GapToLeaderSec = sec;
+                car.GapToLeaderLaps = laps;
+                car.GapSeconds = sec;
+
+                var ahead = chain[i - 1];
+                var (isec, ilaps) = GapBetween(ahead, car, trackMeters);
+                car.IntervalAheadSec = isec;
+                car.IntervalAheadLaps = ilaps;
+                ahead.IntervalBehindSec = isec;
+            }
+
+            if (our != null && car.CarIndex != our.CarIndex)
+            {
+                var carAhead = car.CumulativeSpline >= our.CumulativeSpline;
+                var (gsec, glaps) = carAhead
+                    ? GapBetween(car, our, trackMeters)
+                    : GapBetween(our, car, trackMeters);
+                car.GapToOurSec = gsec.HasValue ? (carAhead ? gsec : -gsec) : null;
+                car.GapToOurLaps = carAhead ? glaps : -glaps;
             }
         }
+    }
+
+    // Вызывать под _lock. front — тот, кто впереди; back — тот, кто сзади.
+    private (double? Seconds, int Laps) GapBetween(CarStateDto front, CarStateDto back, int trackMeters)
+    {
+        var diff = front.CumulativeSpline - back.CumulativeSpline;
+        if (diff < 0) diff = 0;
+        if (diff >= 1.0) return (null, (int)Math.Floor(diff + 1e-6));
+
+        if (_timelines.TryGetValue(front.CarIndex, out var ft)
+            && _timelines.TryGetValue(back.CarIndex, out var bt)
+            && ft.TryTimeAt(bt.CumNow, out var ticksFront))
+        {
+            var sec = (bt.LastTicks - ticksFront) / (double)TimeSpan.TicksPerSecond;
+            return (Math.Max(0, sec), 0);
+        }
+
+        // Истории пока нет (сервер запущен недавно) — грубая оценка по скорости
+        if (trackMeters > 0)
+        {
+            var speed = Math.Max(10.0, (front.SpeedMps + back.SpeedMps) / 2);
+            return (diff * trackMeters / speed, 0);
+        }
+        return (null, 0);
     }
 
     private void MaybeBroadcast()
@@ -609,14 +706,24 @@ public sealed class SessionStateService
     {
         lock (_lock)
         {
+            var realtime = _realtime.Clone();
+            ApplyFlags(realtime);
+            realtime.ClockRunning = DateTime.UtcNow - _lastClockAdvanceAt < TimeSpan.FromSeconds(3);
+            realtime.LastEvent = DateTime.UtcNow - _lastEventAt < TimeSpan.FromSeconds(30) ? _lastEventText : "";
+
+            var cars = _carStates.Values
+                .OrderBy(c => c.Position)
+                .ThenBy(c => c.CarIndex)
+                .Select(c => c.Clone())
+                .ToList();
+
+            // Отрывы осмысленны только в гонке: в квалификации и практике позиция — по лучшему кругу
+            if (realtime.IsRace) ComputeAllGaps(cars);
+
             return new SessionSnapshotDto
             {
-                Realtime = _realtime.Clone(),
-                Cars = _carStates.Values
-                    .OrderBy(c => c.Position)
-                    .ThenBy(c => c.CarIndex)
-                    .Select(c => c.Clone())
-                    .ToList(),
+                Realtime = realtime,
+                Cars = cars,
                 CurrentStint = _currentStint?.Clone(),
                 Stints = _stints.Select(s => s.Clone()).ToList(),
             };
@@ -689,6 +796,104 @@ public sealed class SessionStateService
         }
     }
 
+    /// <summary>Флаги, прочитанные агентом из памяти ACC на ПК пилота.</summary>
+    public void UpdateAgentFlags(string agentId, AgentFlagsState flags)
+    {
+        lock (_lock)
+        {
+            flags.At = DateTime.UtcNow;
+            _agentFlags = flags;
+        }
+    }
+
+    public void ProcessBroadcastingEvent(BroadcastingEvent evt)
+    {
+        lock (_lock)
+        {
+            var now = DateTime.UtcNow;
+            switch (evt.Type)
+            {
+                case BC.BroadcastingCarEvent.Accident:
+                    _lastAccidentAt = now;
+                    _lastEventText = evt.CarData != null ? $"Авария · #{evt.CarData.RaceNumber}" : "Авария на трассе";
+                    _lastEventAt = now;
+                    break;
+                case BC.BroadcastingCarEvent.GreenFlag:
+                    _lastAccidentAt = DateTime.MinValue;
+                    _lastEventText = "Зелёный флаг";
+                    _lastEventAt = now;
+                    break;
+                case BC.BroadcastingCarEvent.SessionOver:
+                    _lastEventText = "Сессия завершена";
+                    _lastEventAt = now;
+                    break;
+                case BC.BroadcastingCarEvent.PenaltyCommMsg:
+                    _lastEventText = string.IsNullOrWhiteSpace(evt.Msg) ? "Штраф" : $"Штраф · {evt.Msg}";
+                    _lastEventAt = now;
+                    break;
+            }
+        }
+    }
+
+    // Вызывать под _lock.
+    private void ApplyFlags(RealtimeStateDto rt)
+    {
+        var now = DateTime.UtcNow;
+        var phase = rt.Phase;
+        var inSession = phase == nameof(BC.SessionPhase.Session);
+
+        var af = _agentFlags;
+        if (af != null && now - af.At < TimeSpan.FromSeconds(4) && af.Status == 2)
+        {
+            rt.FlagSource = "agent";
+            rt.YellowSector1 = af.Yellow1;
+            rt.YellowSector2 = af.Yellow2;
+            rt.YellowSector3 = af.Yellow3;
+            var anyYellow = af.Yellow || af.Yellow1 || af.Yellow2 || af.Yellow3;
+            rt.Flag = af.Red ? "Red"
+                : af.Chequered ? "Chequered"
+                : anyYellow ? "Yellow"
+                : af.White ? "White"
+                : af.Green || inSession ? "Green"
+                : phase == nameof(BC.SessionPhase.FormationLap) ? "Formation"
+                : "None";
+            rt.PlayerFlag = af.PlayerFlag switch { 1 => "Blue", 3 => "Black", 6 => "Penalty", 8 => "Orange", _ => "" };
+            return;
+        }
+
+        rt.PlayerFlag = "";
+        rt.YellowSector1 = rt.YellowSector2 = rt.YellowSector3 = false;
+        switch (phase)
+        {
+            case nameof(BC.SessionPhase.Session):
+                if (now - _lastAccidentAt < TimeSpan.FromSeconds(25))
+                {
+                    rt.Flag = "Yellow";
+                    rt.FlagSource = "event";
+                }
+                else
+                {
+                    rt.Flag = "Green";
+                    rt.FlagSource = "phase";
+                }
+                break;
+            case nameof(BC.SessionPhase.FormationLap):
+                rt.Flag = "Formation";
+                rt.FlagSource = "phase";
+                break;
+            case nameof(BC.SessionPhase.SessionOver):
+            case nameof(BC.SessionPhase.PostSession):
+            case nameof(BC.SessionPhase.ResultUI):
+                rt.Flag = "Chequered";
+                rt.FlagSource = "phase";
+                break;
+            default:
+                rt.Flag = "None";
+                rt.FlagSource = "phase";
+                break;
+        }
+    }
+
     public void SavePendingStints()
     {
         lock (_lock) { CloseCurrentStint(); }
@@ -734,7 +939,8 @@ public sealed class SessionStateService
             var windowStart = _lastBatchAt.TryGetValue(agentId, out var prev) ? prev : now - TimeSpan.FromMilliseconds(250);
             if (now - windowStart > TimeSpan.FromSeconds(5)) windowStart = now - TimeSpan.FromSeconds(5);
             if (now <= windowStart) windowStart = now - TimeSpan.FromMilliseconds(count);
-            _lastBatchAt[agentId] = now;
+            // пустые пачки (агент шлёт только флаги) окно не сдвигают, иначе сэмплы сжались бы в последние миллисекунды
+            if (readings.Count > 0) _lastBatchAt[agentId] = now;
             var step = (now - windowStart) / count;
 
             var samples = new List<TelemetrySampleDto>(readings.Count);
@@ -813,4 +1019,203 @@ public sealed record TelemetryAcceptResult(
 {
     public static TelemetryAcceptResult NotRegistered { get; } =
         new(false, false, Array.Empty<TelemetrySampleDto>(), "", -1);
+}
+
+
+/// <summary>Флаги из памяти ACC (страница Graphics), присланные агентом.</summary>
+public sealed class AgentFlagsState
+{
+    public int Status { get; set; }          // 0 off, 1 replay, 2 live, 3 pause
+    public int PlayerFlag { get; set; }      // 1 blue, 3 black, 6 penalty, 8 orange
+    public bool Yellow { get; set; }
+    public bool Yellow1 { get; set; }
+    public bool Yellow2 { get; set; }
+    public bool Yellow3 { get; set; }
+    public bool White { get; set; }
+    public bool Green { get; set; }
+    public bool Chequered { get; set; }
+    public bool Red { get; set; }
+    public DateTime At { get; set; }
+}
+
+/// <summary>
+/// Сравнивает ход игровых часов ACC с реальным временем. Если игровое время ускорено (множитель времени на сервере),
+/// «осталось до конца» в игровых единицах убывает быстрее настоящего — Scale показывает во сколько раз.
+/// </summary>
+internal sealed class SessionClock
+{
+    private bool _has;
+    private double _elapsedAnchorMs;
+    private DateTime _wallAnchor;
+
+    public double Scale { get; private set; } = 1;
+
+    public void Reset()
+    {
+        _has = false;
+        Scale = 1;
+    }
+
+    public void Feed(double elapsedMs, DateTime nowUtc)
+    {
+        if (!_has || elapsedMs < _elapsedAnchorMs - 1000)
+        {
+            _has = true;
+            _elapsedAnchorMs = elapsedMs;
+            _wallAnchor = nowUtc;
+            return;
+        }
+
+        var wallMs = (nowUtc - _wallAnchor).TotalMilliseconds;
+        if (wallMs < 10_000) return;
+
+        var gameMs = elapsedMs - _elapsedAnchorMs;
+        if (gameMs > 0)
+        {
+            var k = gameMs / wallMs;
+            var rounded = Math.Round(k);
+            if (rounded >= 1 && Math.Abs(k - rounded) < 0.05 * rounded) k = rounded;
+            else if (Math.Abs(k - 1) < 0.03) k = 1;
+            Scale = Math.Clamp(k, 0.25, 60);
+        }
+        // gameMs <= 0 — пауза: коэффициент не меняем
+
+        _elapsedAnchorMs = elapsedMs;
+        _wallAnchor = nowUtc;
+    }
+}
+
+/// <summary>История прохождения трассы одной машиной + курс по движению.</summary>
+internal sealed class CarTimeline
+{
+    private const double SampleStep = 1.0 / 800;
+    private const int MaxSamples = 2600; // ~3 круга
+
+    private readonly List<double> _cum = new();
+    private readonly List<long> _ticks = new();
+    private bool _has;
+    private double _lastSpline;
+    private int _turns;
+    private int _mismatchSamples;
+
+    private bool _hasPos;
+    private double _lastX, _lastY;
+
+    public double CumNow { get; private set; }
+    public long LastTicks { get; private set; }
+    public double HeadingX { get; private set; }
+    public double HeadingY { get; private set; }
+
+    public void Feed(int laps, double spline, long ticks)
+    {
+        if (!_has)
+        {
+            _has = true;
+            _turns = laps;
+            _lastSpline = spline;
+        }
+        else
+        {
+            var d = spline - _lastSpline;
+            if (d < -0.5) _turns++;
+            else if (d > 0.5) _turns--;
+            _lastSpline = spline;
+
+            // ACC увеличивает счётчик кругов и сбрасывает сплайн не одновременно. Если расхождение держится
+            // вдали от линии старт/финиш — доверяем счётчику кругов.
+            if (_turns != laps && spline > 0.1 && spline < 0.9)
+            {
+                if (++_mismatchSamples > 20)
+                {
+                    _turns = laps;
+                    _mismatchSamples = 0;
+                    _cum.Clear();
+                    _ticks.Clear();
+                }
+            }
+            else
+            {
+                _mismatchSamples = 0;
+            }
+        }
+
+        CumNow = _turns + spline;
+        LastTicks = ticks;
+
+        var n = _cum.Count;
+        if (n > 0 && CumNow < _cum[n - 1] - 0.2)
+        {
+            // машину вернули назад (рестарт, телепорт в боксы) — старая история недостоверна
+            _cum.Clear();
+            _ticks.Clear();
+            n = 0;
+        }
+
+        if (n == 0 || CumNow >= _cum[n - 1] + SampleStep)
+        {
+            _cum.Add(CumNow);
+            _ticks.Add(ticks);
+            if (_cum.Count > MaxSamples)
+            {
+                _cum.RemoveRange(0, 200);
+                _ticks.RemoveRange(0, 200);
+            }
+        }
+    }
+
+    /// <summary>Когда эта машина была в точке cum (в долях круга с накоплением). false — точки нет в истории.</summary>
+    public bool TryTimeAt(double cum, out long ticks)
+    {
+        ticks = 0;
+        var n = _cum.Count;
+        if (n < 2 || cum < _cum[0] || cum > _cum[n - 1]) return false;
+
+        int lo = 0, hi = n - 1;
+        while (hi - lo > 1)
+        {
+            var mid = (lo + hi) / 2;
+            if (_cum[mid] <= cum) lo = mid; else hi = mid;
+        }
+
+        var span = _cum[hi] - _cum[lo];
+        var t = span <= 1e-12 ? 0 : (cum - _cum[lo]) / span;
+        ticks = _ticks[lo] + (long)((_ticks[hi] - _ticks[lo]) * t);
+        return true;
+    }
+
+    /// <summary>Курс по смещению машины. Телепорты (боксы, рестарт) и медленное движение игнорируются.</summary>
+    public void UpdateHeading(double x, double y, double kmh)
+    {
+        if (!_hasPos)
+        {
+            _hasPos = true;
+            _lastX = x;
+            _lastY = y;
+            return;
+        }
+
+        var dx = x - _lastX;
+        var dy = y - _lastY;
+        var dist = Math.Sqrt(dx * dx + dy * dy);
+        if (dist < 1.5) return;                       // копим смещение
+        _lastX = x;
+        _lastY = y;
+        if (dist > 60 || kmh < 8) return;             // телепорт или почти стоим
+
+        var nx = dx / dist;
+        var ny = dy / dist;
+        if (HeadingX == 0 && HeadingY == 0)
+        {
+            HeadingX = nx;
+            HeadingY = ny;
+            return;
+        }
+
+        var hx = HeadingX * 0.5 + nx * 0.5;
+        var hy = HeadingY * 0.5 + ny * 0.5;
+        var len = Math.Sqrt(hx * hx + hy * hy);
+        if (len < 1e-6) return;
+        HeadingX = hx / len;
+        HeadingY = hy / len;
+    }
 }

@@ -55,4 +55,8 @@ public sealed class SettingsService
 public sealed class AppSettings
 {
     public int OurCarNumber { get; set; } = 0;
+    /// <summary>Поменять лево/право на радаре местами (зависит от системы координат ACC).</summary>
+    public bool RadarMirror { get; set; } = true;
+    public int RadarRangeIndex { get; set; } = 1; // 0 = 20 м, 1 = 40 м, 2 = 60 м
+    public bool AgentUseFakeData { get; set; } = false;
 }

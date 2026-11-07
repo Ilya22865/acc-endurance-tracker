@@ -64,6 +64,15 @@ public sealed class FakeAccDataSource : IAccDataSource
         return true;
     }
 
+    // Имитация флагов: в каждом «круге» (12 с) несколько секунд жёлтого в секторе 2
+    public bool TryReadFlags(out FlagReading flags)
+    {
+        var phase = (_clock.Elapsed.TotalSeconds % 36.0);
+        var yellow = phase > 24 && phase < 30;
+        flags = new FlagReading(2, 0, yellow, false, yellow, false, false, !yellow, false, false);
+        return true;
+    }
+
     public void Dispose()
     {
     }
