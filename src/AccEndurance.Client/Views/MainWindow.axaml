@@ -633,9 +633,13 @@
         <Border Classes="card">
           <Grid RowDefinitions="Auto,*">
             <Border Classes="cardhead" Padding="16,12">
-              <StackPanel Orientation="Horizontal" Spacing="14">
-                <TextBlock Classes="h2" Text="Карта трассы"/>
-                <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
+              <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                  <TextBlock Classes="h2" Text="Карта трассы"/>
+                  <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
+                </StackPanel>
+                <TextBlock Classes="muted" FontSize="12"
+                           Text="Контур записывается автоматически после чистого круга без пит-стопа и сохраняется для этой трассы."/>
               </StackPanel>
             </Border>
             <Canvas Grid.Row="1" x:Name="MapCanvas" Background="Transparent" ClipToBounds="True"/>
@@ -697,7 +701,7 @@
           </Grid>
         </Border>
         <Border Grid.Row="1" Classes="card" Padding="16,12">
-          <Grid ColumnDefinitions="Auto,300,Auto,Auto,*" ColumnSpacing="14">
+          <Grid ColumnDefinitions="Auto,300,Auto,Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="6">
             <TextBlock Text="Я за рулём как" Classes="muted" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1" ItemsSource="{Binding TeamDrivers}" SelectedItem="{Binding SelectedTeamDriver}" HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>
@@ -710,6 +714,8 @@
             <CheckBox Grid.Column="3" Content="Тестовые данные (без ACC)" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="4" Classes="muted" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right"
                        Text="Агент запускают на ПК того, кто ведёт машину. Адрес сервера берётся из шапки."/>
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Classes="muted" FontSize="12"
+                       Text="Если телеметрия не идёт, откройте %LOCALAPPDATA%\AccEndurance\logs\agent.log — там видны причина выхода и ответы сервера."/>
           </Grid>
         </Border>
         <Border Grid.Row="2" Classes="card" Padding="16">

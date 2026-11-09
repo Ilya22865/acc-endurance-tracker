@@ -1,4 +1,5 @@
 using AccEndurance.Agent;
+using System.Diagnostics;
 
 var options = ParseArgs(args);
 
@@ -19,6 +20,50 @@ Console.CancelKeyPress += (_, e) =>
     e.Cancel = true;
     cts.Cancel();
 };
+
+// Если клиент, запустивший агент, упал, агент не должен остаться висеть
+// и продолжать слать телеметрию. Проверяем родителя раз в 2 секунды.
+if (options.ParentPid > 0)
+{
+    _ = Task.Run(async () =>
+    {
+        while (!cts.IsCancellationRequested)
+        {
+            try
+            {
+                using var parent = Process.GetProcessById(options.ParentPid);
+                if (parent.HasExited) break;
+            }
+            catch (ArgumentException)
+            {
+                break;
+            }
+            catch (InvalidOperationException)
+            {
+                break;
+            }
+            catch
+            {
+                // временная ошибка — проверим ещё раз
+            }
+
+            try
+            {
+                await Task.Delay(2000, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+
+        if (!cts.IsCancellationRequested)
+        {
+            Console.WriteLine($"Родительский процесс {options.ParentPid} завершился — останавливаю агент.");
+            cts.Cancel();
+        }
+    });
+}
 
 using var client = new ServerClient(options.ServerUrl, options.AgentId);
 
@@ -80,44 +125,58 @@ try
 {
     while (!cts.IsCancellationRequested)
     {
-        // читаем часто (≈40 Гц) и пропускаем повторы: графики в клиенте строятся в реальном времени
-        if (source.TryReadSample(out var sample) && sample.PacketId != lastPacketId)
+        try
         {
-            lastPacketId = sample.PacketId;
-            batch.Add(sample);
-            samplesSent++;
-        }
+            // читаем часто (≈40 Гц) и пропускаем повторы: графики в клиенте строятся в реальном времени
+            if (source.TryReadSample(out var sample) && sample.PacketId != lastPacketId)
+            {
+                lastPacketId = sample.PacketId;
+                batch.Add(sample);
+                samplesSent++;
+            }
 
-        // Регистрация хранится на сервере в памяти и пропадает при его перезапуске
-        // (после этого батчи молча отбрасывались). Повторяем её периодически — запрос идемпотентный.
-        if (DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(30))
-        {
-            lastRegister = DateTime.UtcNow;
-            await client.RegisterAsync(driverIndex, driverName, cts.Token);
-        }
-
-        if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
-        {
-            // флаги отправляем с каждой пачкой, даже пустой (ACC на паузе / в меню — сэмплов нет, флаги нужны)
-            FlagReading? flags = source.TryReadFlags(out var fr) ? fr : null;
-            var sent = await client.SendBatchAsync(batch, flags, cts.Token);
-            batch.Clear();
-            lastFlush = DateTime.UtcNow;
-
-            // сервер ответил отказом (обычно 409 — потерял регистрацию после перезапуска): регистрируемся сразу
-            if (!sent && DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(2))
+            // Регистрация хранится на сервере в памяти и пропадает при его перезапуске
+            // (после этого батчи молча отбрасывались). Повторяем её периодически — запрос идемпотентный.
+            if (DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(30))
             {
                 lastRegister = DateTime.UtcNow;
                 await client.RegisterAsync(driverIndex, driverName, cts.Token);
             }
-        }
 
-        await Task.Delay(options.ReadIntervalMs, cts.Token);
+            if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
+            {
+                // флаги отправляем с каждой пачкой, даже пустой (ACC на паузе / в меню — сэмплов нет, флаги нужны)
+                FlagReading? flags = source.TryReadFlags(out var fr) ? fr : null;
+                var sent = await client.SendBatchAsync(batch, flags, cts.Token);
+                batch.Clear();
+                lastFlush = DateTime.UtcNow;
+
+                // сервер ответил отказом (обычно 409 — потерял регистрацию после перезапуска): регистрируемся сразу
+                if (!sent && DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(2))
+                {
+                    lastRegister = DateTime.UtcNow;
+                    await client.RegisterAsync(driverIndex, driverName, cts.Token);
+                }
+            }
+
+            await Task.Delay(options.ReadIntervalMs, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Раньше любая ошибка чтения shared memory или сети убивала агент молча.
+            // Теперь пишем её в agent.log и продолжаем работу.
+            Console.WriteLine($"[error] {ex}");
+            await Task.Delay(1000, cts.Token);
+        }
     }
 }
 catch (OperationCanceledException)
 {
-    // Ctrl+C — штатный выход (раньше TaskCanceledException из Task.Delay вылетала необработанной)
+    // Ctrl+C или завершение родительского процесса — штатный выход
 }
 
 Console.WriteLine($"Отправлено сэмплов: {samplesSent}");
@@ -136,6 +195,7 @@ static AgentOptions ParseArgs(string[] args)
             case "--read-interval":
             case "--interval-ms": options.ReadIntervalMs = int.Parse(args[++i]); break;
             case "--send-interval-ms": options.SendIntervalMs = int.Parse(args[++i]); break;
+            case "--parent-pid": options.ParentPid = int.Parse(args[++i]); break;
             case "--fake": options.UseFakeDataSource = true; break;
         }
     }
@@ -150,4 +210,6 @@ sealed class AgentOptions
     public int ReadIntervalMs { get; set; } = 25;
     public int SendIntervalMs { get; set; } = 250;
     public bool UseFakeDataSource { get; set; } = false;
+    public int ParentPid { get; set; } =
+        int.TryParse(Environment.GetEnvironmentVariable("ACC_PARENT_PID"), out var pid) ? pid : 0;
 }

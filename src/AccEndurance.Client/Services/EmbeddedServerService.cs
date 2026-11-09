@@ -58,24 +58,35 @@ public sealed class EmbeddedServerService : IDisposable
                 WorkingDirectory = workingDirectory ?? Path.GetDirectoryName(serverExePath) ?? Environment.CurrentDirectory
             };
 
+            // Сервер сам завершится, если клиент упадёт (watchdog по PID родителя).
+            startInfo.Environment["ACC_PARENT_PID"] = Environment.ProcessId.ToString();
+
             _serverProcess = new Process { StartInfo = startInfo };
+            var process = _serverProcess;
 
-            _serverProcess.OutputDataReceived += (sender, e) =>
+            ChildProcessLog.Write("server-console.log",
+                $"=== Server start: {serverExePath} (client PID {Environment.ProcessId}) ===");
+
+            process.OutputDataReceived += (sender, e) =>
             {
-                if (!string.IsNullOrEmpty(e.Data))
-                    AddLog(e.Data);
+                if (string.IsNullOrEmpty(e.Data)) return;
+                ChildProcessLog.Write("server-console.log", e.Data);
+                AddLog(e.Data);
             };
 
-            _serverProcess.ErrorDataReceived += (sender, e) =>
+            process.ErrorDataReceived += (sender, e) =>
             {
-                if (!string.IsNullOrEmpty(e.Data))
-                    AddLog($"⚠️ {e.Data}");
+                if (string.IsNullOrEmpty(e.Data)) return;
+                ChildProcessLog.Write("server-console.log", "[stderr] " + e.Data);
+                AddLog($"⚠️ {e.Data}");
             };
 
-            _serverProcess.Exited += (sender, e) =>
+            process.Exited += (sender, e) =>
             {
+                var exitCode = TryGetExitCode(process);
                 _isRunning = false;
-                AddLog("🛑 Сервер остановлен");
+                ChildProcessLog.Write("server-console.log", $"=== Server exited with code {exitCode} ===");
+                AddLog($"🛑 Сервер остановлен (код {exitCode})");
                 OnStateChanged?.Invoke(false);
             };
 
@@ -112,6 +123,7 @@ public sealed class EmbeddedServerService : IDisposable
         catch (Exception ex)
         {
             AddLog($"❌ Ошибка запуска сервера: {ex.Message}");
+            ChildProcessLog.Write("server-console.log", "=== Server start failed: " + ex + " ===");
             _logger.LogError(ex, "Failed to start embedded server");
             return false;
         }
@@ -204,6 +216,18 @@ public sealed class EmbeddedServerService : IDisposable
     public IReadOnlyList<string> GetRecentLogs()
     {
         return _logLines.ToArray();
+    }
+
+    private static string TryGetExitCode(Process process)
+    {
+        try
+        {
+            return process.HasExited ? process.ExitCode.ToString() : "?";
+        }
+        catch
+        {
+            return "?";
+        }
     }
 
     private void AddLog(string message)

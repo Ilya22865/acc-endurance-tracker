@@ -6,6 +6,9 @@ using AccEndurance.Shared.Broadcasting;
 using BC = AccEndurance.Shared.Broadcasting;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace AccEndurance.Server.Services;
@@ -65,6 +68,12 @@ public sealed class SessionStateService
     private List<OutlinePointDto>? _recordedOutline;
     private long _outlineRevision;
     private int _lastRecordedLap = -1;
+    private string? _outlineTrackKey;
+
+    private static readonly string OutlineDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "AccEndurance",
+        "outlines");
 
     public event Action<SessionSnapshotDto>? OnStateChanged;
 
@@ -169,6 +178,16 @@ public sealed class SessionStateService
             _realtime.Wetness = update.Wetness;
             _realtime.Clouds = update.Clouds;
             _realtime.BestSessionLapMs = update.BestSessionLap?.LaptimeMs;
+
+            // ACC сообщает индекс машины, на которую смотрит камера. На ПК пилота это его
+            // машина — гораздо надёжнее, чем прежняя эвристика «первая машина с 3+ пилотами»
+            // (в эндурансе таких машин много, а у команды может быть всего 2 пилота).
+            if (update.FocusedCarIndex >= 0 && _autoOurCarIndex != update.FocusedCarIndex)
+            {
+                _autoOurCarIndex = update.FocusedCarIndex;
+                _logger.LogInformation(
+                    "Focused car index {CarIndex} is treated as our car", update.FocusedCarIndex);
+            }
 
             _isSessionActive = update.Phase == BC.SessionPhase.Session || update.Phase == BC.SessionPhase.FormationLap;
         }
@@ -618,9 +637,68 @@ public sealed class SessionStateService
 
         _recordedOutline = outline;
         _outlineRevision++;
+        SaveOutlineToDisk(_outlineTrackKey ?? SanitizeTrackName(_realtime.TrackName), outline);
         _logger.LogInformation(
             "Recorded outline #{Rev}: lap {Lap} completed, {Count} points, extents {W:F0}m x {H:F0}m",
             _outlineRevision, completedLap, outline.Count, extX, extY);
+    }
+
+    private static string SanitizeTrackName(string? trackName)
+    {
+        if (string.IsNullOrWhiteSpace(trackName))
+            return "unknown";
+
+        // «24H Nürburgring» → «24hnurburgring»: так же, как в старых сохранённых файлах.
+        var normalized = trackName.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
+                continue;
+            if (char.IsLetterOrDigit(ch))
+                sb.Append(char.ToLowerInvariant(ch));
+        }
+
+        return sb.Length == 0 ? "unknown" : sb.ToString();
+    }
+
+    private List<OutlinePointDto>? LoadOutlineFromDisk(string key)
+    {
+        try
+        {
+            var path = Path.Combine(OutlineDirectory, $"outline-{key}.json");
+            if (!File.Exists(path))
+                return null;
+
+            var points = JsonSerializer.Deserialize<List<OutlinePointDto>>(File.ReadAllText(path));
+            if (points == null || points.Count < 50)
+            {
+                _logger.LogWarning("Saved outline {Path} is empty or too short; ignoring", path);
+                return null;
+            }
+
+            return points;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load outline for track key {Key}", key);
+            return null;
+        }
+    }
+
+    private void SaveOutlineToDisk(string key, IReadOnlyList<OutlinePointDto> outline)
+    {
+        try
+        {
+            Directory.CreateDirectory(OutlineDirectory);
+            var path = Path.Combine(OutlineDirectory, $"outline-{key}.json");
+            File.WriteAllText(path, JsonSerializer.Serialize(outline));
+            _logger.LogInformation("Saved outline to {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to save outline for track key {Key}", key);
+        }
     }
 
     // Вызывать под _lock. cars — копии, отсортированные по позиции.
@@ -737,6 +815,26 @@ public sealed class SessionStateService
             _realtime.TrackMeters = track.TrackMeters;
             _realtime.TrackName = track.TrackName;
             _eventTrack = track.TrackName;
+
+            // Контур записывается автоматически, но хранить его надо между запусками.
+            // При смене трассы подхватываем сохранённый outline-<track>.json.
+            var key = SanitizeTrackName(track.TrackName);
+            if (string.Equals(_outlineTrackKey, key, StringComparison.Ordinal))
+                return;
+
+            _outlineTrackKey = key;
+            _currentLapPoints.Clear();
+            _lastRecordedLap = -1;
+            _lapDirty = false;
+            _recordedOutline = LoadOutlineFromDisk(key);
+            _outlineRevision++;
+
+            if (_recordedOutline != null)
+            {
+                _logger.LogInformation(
+                    "Loaded saved outline for track {Track}: {Count} points",
+                    track.TrackName, _recordedOutline.Count);
+            }
         }
     }
 

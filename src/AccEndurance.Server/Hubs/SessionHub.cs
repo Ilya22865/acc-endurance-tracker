@@ -58,14 +58,16 @@ public sealed class SessionStateBroadcaster : BackgroundService
                 {
                     var snapshot = _sessionState.BuildSnapshot();
                     await _hubContext.Clients.All.SendAsync("StateUpdate", snapshot, stoppingToken);
+                }
 
-                    if (_sessionState.OutlineRevision != _lastOutlineRevision)
-                    {
-                        _lastOutlineRevision = _sessionState.OutlineRevision;
-                        var outline = _sessionState.RecordedOutline;
-                        if (outline != null)
-                            await _hubContext.Clients.All.SendAsync("OutlineRecorded", outline, stoppingToken);
-                    }
+                // Контур нужен и вне активной сессии (например, в меню ACC), поэтому
+                // проверяем ревизию независимо от IsSessionActive.
+                if (_sessionState.OutlineRevision != _lastOutlineRevision)
+                {
+                    _lastOutlineRevision = _sessionState.OutlineRevision;
+                    var outline = _sessionState.RecordedOutline;
+                    if (outline != null)
+                        await _hubContext.Clients.All.SendAsync("OutlineRecorded", outline, stoppingToken);
                 }
                 await Task.Delay(_broadcastIntervalMs, stoppingToken);
             }

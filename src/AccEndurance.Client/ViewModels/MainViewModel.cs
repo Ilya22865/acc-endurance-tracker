@@ -421,7 +421,14 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             var rt = snapshot.Realtime;
-        _currentTrackName = rt.TrackName ?? "";
+        var newTrackName = rt.TrackName ?? "";
+        if (!string.Equals(_currentTrackName, newTrackName, StringComparison.OrdinalIgnoreCase))
+        {
+            // при смене трассы старый записанный контур больше не подходит;
+            // новый придёт из OutlineRecorded, если сервер нашёл сохранённый файл
+            _recordedOutline = null;
+        }
+        _currentTrackName = newTrackName;
         MapTrackName = _currentTrackName;
 
         SessionText = $"{SessionTypeName(rt.SessionType)} · {rt.TrackName ?? "трек"}";

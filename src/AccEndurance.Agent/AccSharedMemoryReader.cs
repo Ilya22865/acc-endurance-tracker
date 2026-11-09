@@ -40,8 +40,13 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
             _physics = MemoryMappedFile.OpenExisting(@"Local\acpmf_physics");
             _view = _physics.CreateViewAccessor();
         }
-        catch (FileNotFoundException)
+        catch (Exception ex) when (ex is FileNotFoundException or IOException or UnauthorizedAccessException or ArgumentException)
         {
+            // ACC ещё не запущен, закрылся или работает под другим пользователем.
+            // Раньше необработанное исключение здесь могло уронить весь Agent.
+            // FileNotFoundException — обычное состояние «ACC не запущен», не засоряем лог.
+            if (ex is not FileNotFoundException)
+                Console.WriteLine($"[warn] physics shared memory: {ex.Message}");
             _physics = null;
             _view = null;
         }
@@ -56,8 +61,10 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
             _graphics = MemoryMappedFile.OpenExisting(@"Local\acpmf_graphics");
             _graphicsView = _graphics.CreateViewAccessor();
         }
-        catch (FileNotFoundException)
+        catch (Exception ex) when (ex is FileNotFoundException or IOException or UnauthorizedAccessException or ArgumentException)
         {
+            if (ex is not FileNotFoundException)
+                Console.WriteLine($"[warn] graphics shared memory: {ex.Message}");
             _graphics = null;
             _graphicsView = null;
         }
@@ -97,7 +104,7 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
                 flags = new FlagReading(status, playerFlag, g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7]);
                 return true;
             }
-            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException)
+            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException or IOException)
             {
                 _graphicsView?.Dispose();
                 _graphics?.Dispose();
@@ -136,7 +143,7 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
                     view.ReadSingle(SteerAngleOffset));
                 return true;
             }
-            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException)
+            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException or IOException)
             {
                 // отображение устарело (ACC закрыт) — отпустим и подключимся заново при следующем чтении
                 _view?.Dispose();

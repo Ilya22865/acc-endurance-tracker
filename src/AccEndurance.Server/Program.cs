@@ -50,6 +50,7 @@ builder.Services.AddDbContextFactory<AccEnduranceDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("AccEndurance")));
 
 builder.Services.AddSingleton<SessionStateService>();
+builder.Services.AddHostedService<ParentProcessWatchdog>();
 builder.Services.AddHostedService<TelemetryPersistService>();
 builder.Services.AddSingleton<AccBroadcastService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AccBroadcastService>());

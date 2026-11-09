@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Threading;
 using AccEndurance.Client.Diagnostics;
 using Velopack;
 
@@ -16,6 +17,8 @@ internal static class Program
             DebugLog.Write("CRASH: " + (e.ExceptionObject as Exception)?.ToString());
         TaskScheduler.UnobservedTaskException += (_, e) =>
             DebugLog.Write("TASK: " + e.Exception);
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
+            DebugLog.Write("UI CRASH: " + e.Exception);
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
