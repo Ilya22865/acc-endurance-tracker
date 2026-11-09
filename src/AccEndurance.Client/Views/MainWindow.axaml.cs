@@ -59,16 +59,26 @@ public partial class MainWindow : Window
         vm.RadarUpdated += () => Dispatcher.UIThread.Post(RenderRadar);
         vm.GapTrendChanged += () => Dispatcher.UIThread.Post(RenderGapTrend);
 
-        // графики телеметрии: ~30 кадров в секунду, только пока открыта страница
-        var telemetryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        // графики телеметрии: 60 кадров в секунду, только пока открыта страница.
+        // Рисуем не «по приходу пачки», а каждый кадр — тогда линия движется непрерывно.
+        var telemetryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         var tick = 0;
         telemetryTimer.Tick += (_, _) =>
         {
             if (!vm.IsPage2) return;
             RenderTelemetry(vm);
-            if (++tick % 3 == 0) vm.RefreshTelemetryTexts();
+            if (++tick % 6 == 0) vm.RefreshTelemetryTexts();
         };
         telemetryTimer.Start();
+
+        // Радар тоже перерисовываем по кадровому таймеру, а не только по снимкам
+        // сервера (они приходят ~10 раз в секунду). Позиции машин интерполируются.
+        var radarTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+        radarTimer.Tick += (_, _) =>
+        {
+            if (vm.IsPage3) RenderRadar();
+        };
+        radarTimer.Start();
 
         // обратный отсчёт идёт плавно между снимками сервера
         var clockTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
@@ -78,8 +88,10 @@ public partial class MainWindow : Window
 
     private void RenderTelemetry(MainViewModel vm)
     {
-        // рисуем с небольшой задержкой (0.3 с): данные приходят пачками, так линия движется плавно
-        var now = vm.Telemetry.Now - 0.3;
+        // Небольшая задержка (0.12 с) скрывает сетевой джиттер. Данные приходят
+        // пачками каждые ~50 мс, а рендерер интерполирует крайние точки,
+        // поэтому линия доходит до правого края непрерывно, без рывков.
+        var now = vm.Telemetry.Now - 0.12;
         var window = vm.TelemetryWindowSeconds;
         var points = vm.Telemetry.Points;
 
@@ -92,7 +104,9 @@ public partial class MainWindow : Window
     {
         if (_radarCanvas == null || DataContext is not MainViewModel vm) return;
         if (!vm.IsPage3) return;
-        RadarRenderer.Render(_radarCanvas, vm.RadarFrameData, vm.RadarRangeMeters);
+        // GetRadarFrameSmooth интерполирует позиции между двумя последними снимками,
+        // поэтому машины двигаются плавно на 30 кадрах/с, а не прыгают 10 раз в секунду.
+        RadarRenderer.Render(_radarCanvas, vm.GetRadarFrameSmooth(), vm.RadarRangeMeters);
     }
 
     private void RenderGapTrend()

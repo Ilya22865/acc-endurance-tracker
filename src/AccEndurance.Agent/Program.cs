@@ -208,7 +208,9 @@ sealed class AgentOptions
     public string AgentId { get; set; } = Environment.MachineName;
     public int DriverIndex { get; set; } = -1;
     public int ReadIntervalMs { get; set; } = 25;
-    public int SendIntervalMs { get; set; } = 250;
+    // 50 мс (≈20 пачек/с) вместо 250 мс: клиент получает данные почти непрерывно,
+    // поэтому графики и радар не «дёргаются» раз в четверть секунды.
+    public int SendIntervalMs { get; set; } = 50;
     public bool UseFakeDataSource { get; set; } = false;
     public int ParentPid { get; set; } =
         int.TryParse(Environment.GetEnvironmentVariable("ACC_PARENT_PID"), out var pid) ? pid : 0;

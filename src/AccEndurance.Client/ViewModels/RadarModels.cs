@@ -17,6 +17,7 @@ public sealed class RadarNearItem
 /// <summary>Одна машина на радаре в системе координат нашей: X — вправо, Y — вперёд (метры).</summary>
 public sealed class RadarCar
 {
+    public int CarIndex { get; init; }
     public int Number { get; init; }
     public double X { get; init; }
     public double Y { get; init; }

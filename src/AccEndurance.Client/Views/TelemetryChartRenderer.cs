@@ -159,14 +159,14 @@ public sealed class TelemetryChartRenderer
         }
 
         // --- кривая ---
-        var first = data.Count;
-        for (int i = 0; i < data.Count; i++)
-        {
-            if (data[i].T >= tStart) { first = Math.Max(0, i - 1); break; } // одна точка слева — линия входит в окно плавно
-        }
+        // Рисуем только «наступившие» точки (T <= now), а не все подряд: раньше
+        // точки из ещё не пришедшей пачки прижимались к правому краю и давали
+        // вертикальную «пилу». Края окна интерполируем — линия движется непрерывно.
+        var startIdx = LowerBound(data, tStart);
+        var endIdx = LowerBound(data, now); // первая точка с T >= now
+        var lastVisible = endIdx < data.Count && data[endIdx].T <= now ? endIdx : endIdx - 1;
 
-        var count = data.Count - first;
-        if (count < 2)
+        if (startIdx >= data.Count || lastVisible < startIdx)
         {
             _line.IsVisible = false;
             _fill.IsVisible = false;
@@ -175,36 +175,79 @@ public sealed class TelemetryChartRenderer
             Canvas.SetTop(_emptyText, y0 + ph / 2 - 8);
             return;
         }
-        _emptyText.IsVisible = false;
-        _line.IsVisible = true;
-        _fill.IsVisible = true;
 
-        var stride = Math.Max(1, count / 700); // не больше ~700 точек на график
         var pts = new Points();
-        double lastX = x0, firstX = x0;
-        for (int i = first; i < data.Count; i += stride)
+
+        // левый край окна: интерполяция между точкой до окна и первой точкой в окне
+        if (startIdx > 0 && data[startIdx].T > tStart)
+        {
+            var a = data[startIdx - 1];
+            var b = data[startIdx];
+            var span = b.T - a.T;
+            var f = span > 1e-9 ? Math.Clamp((tStart - a.T) / span, 0, 1) : 1;
+            pts.Add(new Point(x0, Y(Lerp(selector(a), selector(b), f))));
+        }
+
+        // точки внутри окна (не больше ~700 на график)
+        var visibleCount = lastVisible - startIdx + 1;
+        var stride = Math.Max(1, visibleCount / 700);
+        for (int i = startIdx; i <= lastVisible; i += stride)
         {
             var p = data[i];
             var x = x0 + Math.Clamp((p.T - tStart) / windowSeconds, 0, 1) * pw;
-            if (pts.Count == 0) firstX = x;
-            lastX = x;
             pts.Add(new Point(x, Y(selector(p))));
         }
-        // обязательно добавляем последнюю точку
-        var lastPoint = data[data.Count - 1];
-        if ((data.Count - 1 - first) % stride != 0)
+
+        // правый край: интерполируем значение ровно на момент now
+        if (lastVisible + 1 < data.Count)
         {
-            lastX = x0 + Math.Clamp((lastPoint.T - tStart) / windowSeconds, 0, 1) * pw;
-            pts.Add(new Point(lastX, Y(selector(lastPoint))));
+            var a = data[lastVisible];
+            var b = data[lastVisible + 1];
+            var span = b.T - a.T;
+            var f = span > 1e-9 ? Math.Clamp((now - a.T) / span, 0, 1) : 1;
+            pts.Add(new Point(x1, Y(Lerp(selector(a), selector(b), f))));
+        }
+        else if (now - data[lastVisible].T < 1.0)
+        {
+            // новых данных нет, но последняя точка свежая — дотягиваем линию до края
+            pts.Add(new Point(x1, Y(selector(data[lastVisible]))));
         }
 
+        if (pts.Count < 2)
+        {
+            _line.IsVisible = false;
+            _fill.IsVisible = false;
+            _emptyText.IsVisible = _showGrid;
+            Canvas.SetLeft(_emptyText, x0 + 12);
+            Canvas.SetTop(_emptyText, y0 + ph / 2 - 8);
+            return;
+        }
+
+        _emptyText.IsVisible = false;
+        _line.IsVisible = true;
+        _fill.IsVisible = true;
         _line.Points = pts;
 
         var baseY = _autoScaleSymmetric ? Y(0) : y1;
         var poly = new Points();
         foreach (var p in pts) poly.Add(p);
-        poly.Add(new Point(lastX, baseY));
-        poly.Add(new Point(firstX, baseY));
+        poly.Add(new Point(pts[pts.Count - 1].X, baseY));
+        poly.Add(new Point(pts[0].X, baseY));
         _fill.Points = poly;
     }
+
+    /// <summary>Первый индекс, где T >= value (данные отсортированы по времени).</summary>
+    private static int LowerBound(IReadOnlyList<TelemetryPoint> data, double value)
+    {
+        int lo = 0, hi = data.Count;
+        while (lo < hi)
+        {
+            var mid = (lo + hi) / 2;
+            if (data[mid].T < value) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    private static double Lerp(double from, double to, double f) => from + (to - from) * f;
 }

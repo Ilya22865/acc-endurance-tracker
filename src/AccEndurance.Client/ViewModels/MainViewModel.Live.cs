@@ -386,6 +386,13 @@ public sealed partial class MainViewModel
 
     private readonly Dictionary<int, (double Dist, double T, double Closing)> _radarPrev = new();
 
+    // Два последних снимка радара: между ними интерполируются позиции машин,
+    // чтобы радар не «прыгал» на 10 Гц, а двигался плавно каждый кадр.
+    private RadarFrame? _radarPrevFrame;
+    private RadarFrame? _radarCurrFrame;
+    private double _radarPrevAt;
+    private double _radarCurrAt;
+
     partial void OnRadarRangeIndexChanged(int value)
     {
         OnPropertyChanged(nameof(RadarRangeMeters));
@@ -408,6 +415,8 @@ public sealed partial class MainViewModel
         if (our == null)
         {
             RadarFrameData = null;
+            _radarPrevFrame = null;
+            _radarCurrFrame = null;
             RadarNear.Clear();
             SpotterText = "—";
             SpotterDanger = false;
@@ -490,6 +499,7 @@ public sealed partial class MainViewModel
 
             var car = new RadarCar
             {
+                CarIndex = c.CarIndex,
                 Number = c.RaceNumber,
                 X = x,
                 Y = y,
@@ -505,6 +515,11 @@ public sealed partial class MainViewModel
         // забываем машины, которые ушли за пределы радара
         foreach (var key in _radarPrev.Keys.Where(k => !seen.Contains(k)).ToList())
             _radarPrev.Remove(key);
+
+        _radarPrevFrame = _radarCurrFrame;
+        _radarPrevAt = _radarCurrAt;
+        _radarCurrFrame = frame;
+        _radarCurrAt = now;
 
         RadarFrameData = frame;
 
@@ -538,6 +553,73 @@ public sealed partial class MainViewModel
             : "Направление определяется по движению: проедьте несколько метров";
 
         RadarUpdated?.Invoke();
+    }
+
+    /// <summary>
+    /// Кадр радара для отрисовки: позиции интерполируются между двумя последними
+    /// снимками сервера. Отрисовка идёт с задержкой в один интервал снимков,
+    /// чтобы всегда был «следующий» кадр для плавного перехода.
+    /// </summary>
+    public RadarFrame? GetRadarFrameSmooth()
+    {
+        if (_radarCurrFrame == null) return null;
+        if (_radarPrevFrame == null) return _radarCurrFrame;
+
+        var interval = _radarCurrAt - _radarPrevAt;
+        if (interval < 0.02 || interval > 0.5) return _radarCurrFrame;
+
+        var now = _clockWatch.Elapsed.TotalSeconds;
+        var delay = Math.Clamp(interval * 1.25, 0.08, 0.25);
+        var t = now - delay;
+        var f = (t - _radarPrevAt) / interval;
+
+        if (f <= 0) return _radarPrevFrame;
+        if (f >= 1) return _radarCurrFrame;
+        return InterpolateRadar(_radarPrevFrame, _radarCurrFrame, f);
+    }
+
+    private static RadarFrame InterpolateRadar(RadarFrame from, RadarFrame to, double f)
+    {
+        var frame = new RadarFrame
+        {
+            Number = to.Number,
+            HeadingKnown = to.HeadingKnown,
+            SpotterLeft = to.SpotterLeft,
+            SpotterRight = to.SpotterRight,
+        };
+
+        foreach (var car in to.Cars)
+        {
+            var prev = from.Cars.FirstOrDefault(p => p.CarIndex == car.CarIndex);
+            if (prev == null)
+            {
+                frame.Cars.Add(car);
+                continue;
+            }
+
+            frame.Cars.Add(new RadarCar
+            {
+                CarIndex = car.CarIndex,
+                Number = car.Number,
+                X = Lerp(prev.X, car.X, f),
+                Y = Lerp(prev.Y, car.Y, f),
+                Distance = Lerp(prev.Distance, car.Distance, f),
+                AngleDeg = LerpAngle(prev.AngleDeg, car.AngleDeg, f),
+                IsWarn = car.IsWarn,
+                IsDanger = car.IsDanger,
+            });
+        }
+
+        return frame;
+    }
+
+    private static double Lerp(double from, double to, double f) => from + (to - from) * f;
+
+    private static double LerpAngle(double from, double to, double f)
+    {
+        // кратчайший путь по кругу: иначе при переходе через ±180° машина крутится
+        var delta = (to - from + 540.0) % 360.0 - 180.0;
+        return from + delta * f;
     }
 
     private readonly record struct StandingsRowInfo(string Driver, bool Alongside, double Closing);
