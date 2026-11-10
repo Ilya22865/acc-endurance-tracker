@@ -40,7 +40,7 @@ ASP.NET Core сервер с REST API и SignalR хабом. Подключае�
 Скачайте последний релиз из [Releases](https://github.com/Ilya22865/acc-endurance-tracker/releases):
 - **Windows:** `AccEndurance-win-win-Setup.exe`
 - **Linux:** `AccEndurance-linux.AppImage`
-- **macOS:** `AccEndurance-osx.pkg`
+- **macOS:** `AccEndurance-osx-osx-Setup.pkg`
 
 ### 2. Настройте базу данных
 
@@ -215,9 +215,9 @@ dotnet run -- --server http://localhost:5261
 2. **GitHub Actions** соберёт и опубликует релиз с установочными файлами
 
 3. **Установить приложение** из релиза:
-   - Windows: `AccEndurance-win-Setup.exe`
+   - Windows: `AccEndurance-win-win-Setup.exe`
    - Linux: `AccEndurance-linux.AppImage`
-   - macOS: `AccEndurance-osx.pkg`
+   - macOS: `AccEndurance-osx-osx-Setup.pkg`
 
 4. **Создать новый релиз** с увеличенной версией (например, `v0.1.1`)
 
