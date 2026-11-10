@@ -242,6 +242,25 @@
     <Setter Property="Stroke" Value="{DynamicResource TextBrush}"/>
   </Style>
 
+  <!-- ============ ЛОГИ SERVER/AGENT ============ -->
+  <Style Selector="ListBox.log">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+  <Style Selector="ListBox.log > ListBoxItem">
+    <Setter Property="Padding" Value="2,0"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+  </Style>
+  <Style Selector="ListBox.log > ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBox.log > ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
   <!-- ============ СЕГМЕНТ-ПЕРЕКЛЮЧАТЕЛЬ ============ -->
   <Style Selector="ListBox.seg">
     <Setter Property="Background" Value="{DynamicResource BgBrush}"/>

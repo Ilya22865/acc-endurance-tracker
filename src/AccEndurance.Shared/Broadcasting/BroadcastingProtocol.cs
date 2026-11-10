@@ -153,21 +153,31 @@ public sealed class BroadcastingProtocol : IDisposable
             {
                 _ = reader.ReadInt32();
                 var carCount = reader.ReadUInt16();
-                _entryList.Clear();
+                var listedCars = new HashSet<ushort>(carCount);
                 for (int i = 0; i < carCount; i++)
                 {
                     var carIndex = reader.ReadUInt16();
-                    _entryList[carIndex] = new CarInfo { CarIndex = carIndex };
+                    listedCars.Add(carIndex);
+                    // Не затираем уже полученные данные (EntryListCar может прийти раньше
+                    // или повторно): иначе в онлайне пропадают названия команд.
+                    if (!_entryList.ContainsKey(carIndex))
+                        _entryList[carIndex] = new CarInfo { CarIndex = carIndex };
                 }
+
+                // Список машин — авторитетный: убираем только те индексы, которых в нём нет.
+                foreach (var stale in _entryList.Keys.Where(k => !listedCars.Contains(k)).ToList())
+                    _entryList.Remove(stale);
                 break;
             }
             case InboundMessageTypes.EntryListCar:
             {
                 var carIndex = reader.ReadUInt16();
+                // UDP не гарантирует порядок: EntryListCar может прийти до EntryList.
+                // Раньше такая машина отбрасывалась, и команда оставалась без названия.
                 if (!_entryList.TryGetValue(carIndex, out var car))
                 {
-                    Console.Error.WriteLine($"Entry list update for unknown carIndex {carIndex}");
-                    break;
+                    car = new CarInfo { CarIndex = carIndex };
+                    _entryList[carIndex] = car;
                 }
 
                 car.CarModelType = reader.ReadByte();

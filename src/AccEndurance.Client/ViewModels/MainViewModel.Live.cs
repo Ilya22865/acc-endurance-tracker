@@ -219,7 +219,13 @@ public sealed partial class MainViewModel
     {
         row.Position = c.Position;
         row.RaceNumber = c.RaceNumber;
-        row.TeamName = c.TeamName;
+        // В онлайне ACC иногда присылает пустое название команды. Показываем хотя бы
+        // модель машины, чтобы строка не выглядела «битой».
+        row.TeamName = !string.IsNullOrWhiteSpace(c.TeamName)
+            ? c.TeamName
+            : !string.IsNullOrWhiteSpace(c.CarModelName)
+                ? c.CarModelName
+                : c.RaceNumber > 0 ? $"#{c.RaceNumber}" : $"Car {c.CarIndex}";
         row.Driver = c.Driver;
         row.CarModel = c.CarModelName;
         row.Laps = c.Laps;

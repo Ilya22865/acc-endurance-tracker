@@ -40,6 +40,10 @@ catch
     logDir = Path.Combine(Path.GetTempPath(), "AccEndurance-logs");
 }
 builder.Logging.AddProvider(new FileLoggerProvider(Path.Combine(logDir, "server.log")));
+// EF Core пишет каждый SQL-запрос на уровне Information. Встроенный сервер читает
+// stdout построчно, и этот поток забивал консоль/вкладку «Сервер» до зависания.
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

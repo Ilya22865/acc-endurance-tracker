@@ -80,8 +80,6 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isAgentRunning;
     [ObservableProperty] private string _serverStatus = "Остановлен";
     [ObservableProperty] private string _agentStatus = "Остановлен";
-    [ObservableProperty] private string _serverLogs = "";
-    [ObservableProperty] private string _agentLogs = "";
     [ObservableProperty] private int _selectedDriverIndex;
     [ObservableProperty] private bool _agentUseFakeData;
 
@@ -188,12 +186,14 @@ public sealed partial class MainViewModel : ObservableObject
                 loggerFactory.CreateLogger(typeof(Services.EmbeddedServerService).FullName ?? "EmbeddedServer"));
             _embeddedServer.OnLogLine += line =>
             {
+                var text = PrepareLogLine(line);
+                // Background: строки лога не должны конкурировать с отрисовкой и вводом,
+                // иначе при активном сервере интерфейс начинает «залипать».
                 Dispatcher.UIThread.Post(() =>
                 {
-                    ServerLogLines.Add(line);
-                    if (ServerLogLines.Count > 500) ServerLogLines.RemoveAt(0);
-                    ServerLogs = string.Join("\n", ServerLogLines);
-                });
+                    ServerLogLines.Add(text);
+                    while (ServerLogLines.Count > 500) ServerLogLines.RemoveAt(0);
+                }, DispatcherPriority.Background);
             };
             _embeddedServer.OnStateChanged += running =>
             {
@@ -208,12 +208,12 @@ public sealed partial class MainViewModel : ObservableObject
                 loggerFactory.CreateLogger(typeof(Services.EmbeddedAgentService).FullName ?? "EmbeddedAgent"));
             _embeddedAgent.OnLogLine += line =>
             {
+                var text = PrepareLogLine(line);
                 Dispatcher.UIThread.Post(() =>
                 {
-                    AgentLogLines.Add(line);
-                    if (AgentLogLines.Count > 500) AgentLogLines.RemoveAt(0);
-                    AgentLogs = string.Join("\n", AgentLogLines);
-                });
+                    AgentLogLines.Add(text);
+                    while (AgentLogLines.Count > 500) AgentLogLines.RemoveAt(0);
+                }, DispatcherPriority.Background);
             };
             _embeddedAgent.OnStateChanged += running =>
             {
@@ -270,6 +270,12 @@ public sealed partial class MainViewModel : ObservableObject
             DebugLog.Write($"Failed to init embedded services: {ex}");
         }
     }
+
+    private const int MaxLogLineLength = 2000;
+
+    /// <summary>Слишком длинная строка (например, SQL-дамп) раздувает элемент списка и тормозит прокрутку.</summary>
+    private static string PrepareLogLine(string line)
+        => line.Length <= MaxLogLineLength ? line : line[..MaxLogLineLength] + " …";
 
     private async Task StartServerAsync()
     {

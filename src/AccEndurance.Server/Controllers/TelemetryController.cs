@@ -43,7 +43,7 @@ public sealed class TelemetryController : ControllerBase
         if (!result.Registered)
             return StatusCode(StatusCodes.Status409Conflict, new { error = "agent not registered" });
 
-        if (request.Flags != null)
+        if (request.Flags != null && result.IsCurrentDriver)
         {
             _sessionState.UpdateAgentFlags(request.DriverId, new AgentFlagsState
             {
@@ -60,8 +60,9 @@ public sealed class TelemetryController : ControllerBase
             });
         }
 
-        // «живая» телеметрия — сразу всем клиентам
-        if (result.Samples.Count > 0)
+        // «живая» телеметрия — сразу всем клиентам, но только от пилота, который сейчас за рулём.
+        // Иначе при смене пилотов два агента смешивают данные на графиках.
+        if (result.Samples.Count > 0 && result.IsCurrentDriver)
         {
             await _hub.Clients.All.SendAsync("TelemetryBatch", new TelemetryBatchDto
             {

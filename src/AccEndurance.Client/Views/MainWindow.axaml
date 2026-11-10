@@ -106,13 +106,16 @@
                SelectedIndex="{Binding SelectedPageIndex, Mode=TwoWay}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:NavItem">
-            <StackPanel>
-              <Border Height="1" Margin="6,12,6,8" Background="{DynamicResource LineBrush}" IsVisible="{Binding IsGroupStart}"/>
+            <Panel>
               <StackPanel Orientation="Horizontal" Spacing="12" Margin="12,10">
                 <Path Classes="icon" Data="{Binding Icon}"/>
                 <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"/>
               </StackPanel>
-            </StackPanel>
+              <!-- Разделитель рисуется поверх верхнего отступа и не увеличивает высоту
+                   пункта: иначе ховер «Сервера» был выше остальных. -->
+              <Border Height="1" Margin="6,0" VerticalAlignment="Top"
+                      Background="{DynamicResource LineBrush}" IsVisible="{Binding IsGroupStart}"/>
+            </Panel>
           </DataTemplate>
         </ListBox.ItemTemplate>
       </ListBox>
@@ -679,10 +682,17 @@
           </Grid>
         </Border>
         <Border Grid.Row="1" Classes="card" Padding="16">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <TextBlock Text="{Binding ServerLogs}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
-                       Foreground="{DynamicResource Text2Brush}" TextWrapping="Wrap"/>
-          </ScrollViewer>
+          <!-- Виртуализированный список: старый TextBlock со string.Join перестраивал
+               весь текст на каждой строке и подвешивал вкладку при большом логе. -->
+          <ListBox x:Name="ServerLogList" Classes="log" ItemsSource="{Binding ServerLogLines}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                           Foreground="{DynamicResource Text2Brush}" TextWrapping="NoWrap"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </Border>
       </Grid>
 
@@ -713,16 +723,22 @@
             <Button Grid.Column="2" Content="Обновить список" Command="{Binding RefreshTeamDriversCommand}"/>
             <CheckBox Grid.Column="3" Content="Тестовые данные (без ACC)" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="4" Classes="muted" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right"
-                       Text="Агент запускают на ПК того, кто ведёт машину. Адрес сервера берётся из шапки."/>
+                       TextWrapping="Wrap" MaxWidth="360"
+                       Text="Агент запускают на ПК того, кто ведёт машину. При смене пилота остановите агента на старом ПК и запустите на новом — стинт разделится автоматически. Адрес сервера берётся из шапки."/>
             <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Classes="muted" FontSize="12"
                        Text="Если телеметрия не идёт, откройте %LOCALAPPDATA%\AccEndurance\logs\agent.log — там видны причина выхода и ответы сервера."/>
           </Grid>
         </Border>
         <Border Grid.Row="2" Classes="card" Padding="16">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <TextBlock Text="{Binding AgentLogs}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
-                       Foreground="{DynamicResource Text2Brush}" TextWrapping="Wrap"/>
-          </ScrollViewer>
+          <ListBox x:Name="AgentLogList" Classes="log" ItemsSource="{Binding AgentLogLines}"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                           Foreground="{DynamicResource Text2Brush}" TextWrapping="NoWrap"/>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </Border>
       </Grid>
 

@@ -119,7 +119,27 @@ public sealed class SessionStateService
         {
             _entryList[car.CarIndex] = car;
             UpdateDriverStates(car);
+            // Список машин может прийти уже после первых RealtimeCarUpdate. Применяем его
+            // к существующему состоянию сразу, не дожидаясь следующего пакета с трассы.
+            ApplyEntryListToState(car);
         }
+    }
+
+    // Вызывать под _lock.
+    private void ApplyEntryListToState(CarInfo car)
+    {
+        if (!_carStates.TryGetValue(car.CarIndex, out var state)) return;
+
+        if (!string.IsNullOrWhiteSpace(car.TeamName))
+            state.TeamName = car.TeamName;
+        if (car.CarModelType != 0)
+            state.CarModelName = CarModels.GetModelName(car.CarModelType);
+        if (car.RaceNumber > 0)
+            state.RaceNumber = car.RaceNumber;
+
+        var di = state.DriverIndex;
+        if (di >= 0 && di < car.Drivers.Count && !string.IsNullOrWhiteSpace(car.Drivers[di].ShortName))
+            state.Driver = car.Drivers[di].ShortName;
     }
 
     public void RegisterDriver(string agentId, int driverIndex, string displayName)
@@ -317,10 +337,16 @@ public sealed class SessionStateService
                 var currentDriver = update.DriverIndex < car.Drivers.Count
                     ? car.Drivers[update.DriverIndex]
                     : null;
-                state.Driver = currentDriver?.ShortName ?? state.Driver;
-                state.CarModelName = CarModels.GetModelName(car.CarModelType);
-                state.TeamName = car.TeamName;
-                state.RaceNumber = car.RaceNumber;
+                // Не затираем уже известные данные пустыми/нулевыми значениями: в онлайне
+                // EntryListCar может прийти позже, и раньше это обнуляло название команды.
+                if (!string.IsNullOrWhiteSpace(currentDriver?.ShortName))
+                    state.Driver = currentDriver!.ShortName;
+                if (!string.IsNullOrWhiteSpace(car.TeamName))
+                    state.TeamName = car.TeamName;
+                if (car.CarModelType != 0)
+                    state.CarModelName = CarModels.GetModelName(car.CarModelType);
+                if (car.RaceNumber > 0)
+                    state.RaceNumber = car.RaceNumber;
             }
 
             var isOurCar = IsOurCar(update.CarIndex);
@@ -1014,6 +1040,9 @@ public sealed class SessionStateService
                 return TelemetryAcceptResult.NotRegistered;
 
             var stint = _currentStint;
+            // Пока стинт не определён, не мешаем агенту (данные ещё не с чем сверять).
+            // После смены пилота пакеты «старого» агента больше не попадают в эфир и в БД.
+            var isCurrentDriver = stint == null || stint.DriverIndex == agentDriverIndex;
             var persist = _isSessionActive && stint != null && stint.DriverIndex == agentDriverIndex;
 
             // имя пилота для подписи на графиках
@@ -1066,7 +1095,7 @@ public sealed class SessionStateService
                 list.AddRange(samples);
             }
 
-            return new TelemetryAcceptResult(true, persist, samples, driverName, agentDriverIndex);
+            return new TelemetryAcceptResult(true, persist, isCurrentDriver, samples, driverName, agentDriverIndex);
         }
     }
 
@@ -1111,12 +1140,13 @@ public sealed class SessionStateService
 public sealed record TelemetryAcceptResult(
     bool Registered,
     bool Persisted,
+    bool IsCurrentDriver,
     IReadOnlyList<TelemetrySampleDto> Samples,
     string Driver,
     int DriverIndex)
 {
     public static TelemetryAcceptResult NotRegistered { get; } =
-        new(false, false, Array.Empty<TelemetrySampleDto>(), "", -1);
+        new(false, false, false, Array.Empty<TelemetrySampleDto>(), "", -1);
 }
 
 

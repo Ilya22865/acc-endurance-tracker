@@ -59,6 +59,23 @@ public partial class MainWindow : Window
         vm.RadarUpdated += () => Dispatcher.UIThread.Post(RenderRadar);
         vm.GapTrendChanged += () => Dispatcher.UIThread.Post(RenderGapTrend);
 
+        // Логи Server/Agent — виртуализированные списки. Держим прокрутку внизу,
+        // чтобы новые строки были видны без ручного скролла.
+        var serverLog = this.FindControl<ListBox>("ServerLogList");
+        var agentLog = this.FindControl<ListBox>("AgentLogList");
+        if (serverLog != null) AutoScrollLog(serverLog, vm.ServerLogLines);
+        if (agentLog != null) AutoScrollLog(agentLog, vm.AgentLogLines);
+
+        // При открытии вкладки сразу показываем последние строки: пока вкладка была
+        // скрыта, автоскролл не тратил время на невидимый список.
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsPage6))
+                Dispatcher.UIThread.Post(() => ScrollLogToEnd(serverLog), DispatcherPriority.Background);
+            else if (e.PropertyName == nameof(MainViewModel.IsPage7))
+                Dispatcher.UIThread.Post(() => ScrollLogToEnd(agentLog), DispatcherPriority.Background);
+        };
+
         // графики телеметрии: 60 кадров в секунду, только пока открыта страница.
         // Рисуем не «по приходу пачки», а каждый кадр — тогда линия движется непрерывно.
         var telemetryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
@@ -84,6 +101,21 @@ public partial class MainWindow : Window
         var clockTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         clockTimer.Tick += (_, _) => vm.TickClock();
         clockTimer.Start();
+    }
+
+    private static void AutoScrollLog(ListBox list, System.Collections.Specialized.INotifyCollectionChanged lines)
+    {
+        lines.CollectionChanged += (_, e) =>
+        {
+            if (e.Action != System.Collections.Specialized.NotifyCollectionChangedAction.Add) return;
+            Dispatcher.UIThread.Post(() => ScrollLogToEnd(list), DispatcherPriority.Background);
+        };
+    }
+
+    private static void ScrollLogToEnd(ListBox? list)
+    {
+        if (list == null || !list.IsEffectivelyVisible || list.ItemCount == 0) return;
+        list.ScrollIntoView(list.ItemCount - 1);
     }
 
     private void RenderTelemetry(MainViewModel vm)
