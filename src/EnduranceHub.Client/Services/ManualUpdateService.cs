@@ -1,3 +1,4 @@
+using System.Reflection;
 using Velopack;
 using Velopack.Sources;
 using Microsoft.Extensions.Logging;
@@ -35,8 +36,23 @@ public sealed class ManualUpdateService
     {
         get
         {
-            var version = typeof(ManualUpdateService).Assembly.GetName().Version;
-            return version != null ? $"v{version.Major}.{version.Minor}.{version.Build}" : "v0.1.0";
+            var assembly = typeof(ManualUpdateService).Assembly;
+            var informational = assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion;
+
+            if (!string.IsNullOrWhiteSpace(informational))
+            {
+                // InformationalVersion может содержать build-метаданные: "1.0.0-beta+<sha>".
+                var version = informational.Split('+')[0].Trim();
+                if (version.Length > 0)
+                {
+                    return $"v{version}";
+                }
+            }
+
+            var fallback = assembly.GetName().Version;
+            return fallback != null ? $"v{fallback.Major}.{fallback.Minor}.{fallback.Build}" : "v0.1.0";
         }
     }
 

@@ -4,8 +4,10 @@
     <OutputType Condition="$([MSBuild]::IsOSPlatform('Windows'))">WinExe</OutputType>
     <OutputType Condition="!$([MSBuild]::IsOSPlatform('Windows'))">Exe</OutputType>
     <Version Condition="'$(Version)' == ''">0.1.0</Version>
-    <AssemblyVersion>$(Version)</AssemblyVersion>
-    <FileVersion>$(Version)</FileVersion>
+    <!-- AssemblyVersion/FileVersion не принимают пре-релизный суффикс (1.0.0-beta),
+         поэтому для них берём только числовую часть. Суффикс остаётся в InformationalVersion. -->
+    <AssemblyVersion>$(Version.Split('-')[0])</AssemblyVersion>
+    <FileVersion>$(Version.Split('-')[0])</FileVersion>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
