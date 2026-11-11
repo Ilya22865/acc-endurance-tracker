@@ -1,29 +1,34 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+  <!-- Строгий стиль: прямые углы, тонкие линии, один сигнальный акцент.
+       Никаких градиентов, теней и скруглений «таблеткой». -->
+
   <!-- ============ ТЕКСТ ============ -->
   <Style Selector="TextBlock.h1">
-    <Setter Property="FontSize" Value="19"/>
+    <Setter Property="FontSize" Value="18"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.2"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
   <Style Selector="TextBlock.h2">
-    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.2"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
   <Style Selector="TextBlock.label">
-    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontSize" Value="10"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
-    <Setter Property="LetterSpacing" Value="0.8"/>
+    <Setter Property="LetterSpacing" Value="1.1"/>
     <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
   </Style>
   <Style Selector="TextBlock.secondary">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="12.5"/>
     <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
   </Style>
   <Style Selector="TextBlock.muted">
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontSize" Value="12.5"/>
     <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
   </Style>
   <Style Selector="TextBlock.mono">
@@ -31,19 +36,19 @@
   </Style>
   <Style Selector="TextBlock.clock">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="30"/>
+    <Setter Property="FontSize" Value="28"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
   <Style Selector="TextBlock.big">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="34"/>
+    <Setter Property="FontSize" Value="32"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
   <Style Selector="TextBlock.pos">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="FontSize" Value="17"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
@@ -51,7 +56,7 @@
   <!-- время круга: фиолетовый — лучший в сессии, зелёный — личный лучший -->
   <Style Selector="TextBlock.time">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontSize" Value="15"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -61,7 +66,7 @@
   <Style Selector="TextBlock.time.best"><Setter Property="Foreground" Value="{DynamicResource BestBrush}"/></Style>
   <Style Selector="TextBlock.gap">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="HorizontalAlignment" Value="Right"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
@@ -71,36 +76,71 @@
   <Style Selector="TextBlock.good"><Setter Property="Foreground" Value="{DynamicResource GoodBrush}"/></Style>
   <Style Selector="TextBlock.bad"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/></Style>
 
+  <!-- бренд в левой панели -->
+  <Style Selector="TextBlock.brand">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.2"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+  </Style>
+  <Style Selector="TextBlock.brandsub">
+    <Setter Property="FontSize" Value="9"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="2.4"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
+  </Style>
+  <Style Selector="TextBlock.navversion">
+    <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
+  </Style>
+
   <!-- ============ ИКОНКИ ============ -->
   <Style Selector="Path.icon">
-    <Setter Property="Width" Value="24"/>
-    <Setter Property="Height" Value="24"/>
+    <Setter Property="Width" Value="22"/>
+    <Setter Property="Height" Value="22"/>
     <Setter Property="Stretch" Value="None"/>
-    <Setter Property="Stroke" Value="{DynamicResource Text2Brush}"/>
-    <Setter Property="StrokeThickness" Value="1.8"/>
+    <Setter Property="Stroke" Value="{DynamicResource Text3Brush}"/>
+    <Setter Property="StrokeThickness" Value="1.6"/>
     <Setter Property="StrokeLineCap" Value="Round"/>
     <Setter Property="StrokeJoin" Value="Round"/>
   </Style>
 
-  <!-- ============ КАРТОЧКИ ============ -->
+  <!-- ============ КАРТОЧКИ И РАЗДЕЛИТЕЛИ ============ -->
   <Style Selector="Border.card">
     <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="ClipToBounds" Value="True"/>
   </Style>
   <Style Selector="Border.cardhead">
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="16,12"/>
+    <Setter Property="Padding" Value="16,11"/>
   </Style>
   <Style Selector="Border.panel">
     <Setter Property="Background" Value="{DynamicResource BgBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="CornerRadius" Value="4"/>
     <Setter Property="Padding" Value="14"/>
+  </Style>
+  <!-- вертикальный разделитель в шапке -->
+  <Style Selector="Border.vsep">
+    <Setter Property="Width" Value="1"/>
+    <Setter Property="Background" Value="{DynamicResource LineBrush}"/>
+    <Setter Property="Margin" Value="0,3"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+  </Style>
+  <!-- карточка нашей машины в шапке: оранжевая черта слева -->
+  <Style Selector="Border.owncard">
+    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
 
   <!-- ============ КНОПКИ ============ -->
@@ -109,9 +149,10 @@
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="14,8"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="13,6"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="FontSize" Value="12.5"/>
     <Setter Property="FontWeight" Value="Medium"/>
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter">
@@ -119,15 +160,29 @@
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+  </Style>
+  <Style Selector="Button:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
+  </Style>
   <Style Selector="Button.primary">
-    <Setter Property="Background" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource BgBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#FFFFFF"/>
-    <Setter Property="BorderBrush" Value="#FFFFFF"/>
+    <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource BgBrush}"/>
+  </Style>
+  <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
   </Style>
   <Style Selector="Button.secondary">
     <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
@@ -149,28 +204,49 @@
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="Padding" Value="10,7"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="9,5"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="FontSize" Value="12.5"/>
   </Style>
   <Style Selector="TextBox:focus /template/ Border">
-    <Setter Property="BorderBrush" Value="{DynamicResource InfoBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="TextBox:pointerover /template/ Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
   </Style>
   <Style Selector="ComboBox">
     <Setter Property="Background" Value="{DynamicResource BgBrush}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
-    <Setter Property="CornerRadius" Value="8"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="MinHeight" Value="30"/>
+    <Setter Property="Padding" Value="9,5"/>
+    <Setter Property="FontSize" Value="12.5"/>
+  </Style>
+  <Style Selector="ComboBox:pointerover /template/ Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
+  </Style>
+  <Style Selector="ComboBox:focus /template/ Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="CheckBox">
+    <Setter Property="FontSize" Value="12.5"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+    <Setter Property="MinHeight" Value="26"/>
+  </Style>
+  <Style Selector="CheckBox:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
 
   <!-- ============ ПОЛОСЫ ПРОГРЕССА (педали, руль) ============ -->
   <Style Selector="ProgressBar.gauge">
-    <Setter Property="Height" Value="8"/>
-    <Setter Property="MinHeight" Value="8"/>
+    <Setter Property="Height" Value="6"/>
+    <Setter Property="MinHeight" Value="6"/>
     <Setter Property="Maximum" Value="100"/>
     <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
-    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="CornerRadius" Value="2"/>
   </Style>
   <Style Selector="ProgressBar.gas"><Setter Property="Foreground" Value="{DynamicResource GoodBrush}"/></Style>
   <Style Selector="ProgressBar.brake"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/></Style>
@@ -178,41 +254,50 @@
 
   <!-- ============ ЧИПЫ И НОМЕРА ============ -->
   <Style Selector="Border.chip">
-    <Setter Property="Padding" Value="9,2"/>
-    <Setter Property="CornerRadius" Value="11"/>
-    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+    <Setter Property="Padding" Value="7,1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="Border.chip > TextBlock">
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.6"/>
     <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
   </Style>
-  <Style Selector="Border.chip.ok"><Setter Property="Background" Value="{DynamicResource GoodSoftBrush}"/></Style>
+  <Style Selector="Border.chip.ok"><Setter Property="Background" Value="{DynamicResource GoodSoftBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource GoodBrush}"/></Style>
   <Style Selector="Border.chip.ok > TextBlock"><Setter Property="Foreground" Value="{DynamicResource GoodBrush}"/></Style>
-  <Style Selector="Border.chip.warn"><Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/></Style>
+  <Style Selector="Border.chip.warn"><Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource WarnBrush}"/></Style>
   <Style Selector="Border.chip.warn > TextBlock"><Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/></Style>
-  <Style Selector="Border.chip.bad"><Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/></Style>
+  <Style Selector="Border.chip.bad"><Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/></Style>
   <Style Selector="Border.chip.bad > TextBlock"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/></Style>
 
+  <!-- номер машины: белая табличка у нашей, тёмная у остальных -->
   <Style Selector="Border.numbadge">
-    <Setter Property="MinWidth" Value="40"/>
-    <Setter Property="Height" Value="28"/>
+    <Setter Property="MinWidth" Value="38"/>
+    <Setter Property="Height" Value="26"/>
     <Setter Property="Padding" Value="6,0"/>
-    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
     <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style Selector="Border.numbadge > TextBlock">
     <Setter Property="FontFamily" Value="{DynamicResource NumFont}"/>
-    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontSize" Value="14"/>
     <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="HorizontalAlignment" Value="Center"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
-  <Style Selector="Border.numbadge.own"><Setter Property="Background" Value="{DynamicResource OwnBrush}"/></Style>
+  <Style Selector="Border.numbadge.own">
+    <Setter Property="Background" Value="{DynamicResource OwnBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource OwnBrush}"/>
+  </Style>
   <Style Selector="Border.numbadge.own > TextBlock"><Setter Property="Foreground" Value="{DynamicResource OnOwnBrush}"/></Style>
 
   <!-- ============ НАВИГАЦИЯ СЛЕВА ============ -->
@@ -223,8 +308,11 @@
   </Style>
   <Style Selector="ListBox.nav > ListBoxItem">
     <Setter Property="Padding" Value="0"/>
-    <Setter Property="Margin" Value="0,1"/>
-    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
   </Style>
   <Style Selector="ListBox.nav > ListBoxItem:pointerover /template/ ContentPresenter">
@@ -235,8 +323,11 @@
     <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
+  <Style Selector="ListBox.nav > ListBoxItem:selected">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
   <Style Selector="ListBox.nav > ListBoxItem:selected Path.icon">
-    <Setter Property="Stroke" Value="{DynamicResource OwnBrush}"/>
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}"/>
   </Style>
   <Style Selector="ListBox.nav > ListBoxItem:pointerover Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource TextBrush}"/>
@@ -249,7 +340,7 @@
     <Setter Property="Padding" Value="0"/>
   </Style>
   <Style Selector="ListBox.log > ListBoxItem">
-    <Setter Property="Padding" Value="2,0"/>
+    <Setter Property="Padding" Value="1,0"/>
     <Setter Property="MinHeight" Value="0"/>
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
@@ -266,26 +357,26 @@
     <Setter Property="Background" Value="{DynamicResource BgBrush}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="9"/>
+    <Setter Property="CornerRadius" Value="4"/>
     <Setter Property="Padding" Value="2"/>
     <Setter Property="ItemsPanel">
       <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
     </Setter>
   </Style>
   <Style Selector="ListBox.seg > ListBoxItem">
-    <Setter Property="Padding" Value="12,6"/>
-    <Setter Property="CornerRadius" Value="7"/>
-    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Padding" Value="11,4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="Medium"/>
-    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
   </Style>
   <Style Selector="ListBox.seg > ListBoxItem:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
   </Style>
   <Style Selector="ListBox.seg > ListBoxItem:selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
-    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
   </Style>
 
   <!-- ============ ТАБЛИЦЫ (ListBox со строками) ============ -->
@@ -307,32 +398,33 @@
     <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
   </Style>
   <Style Selector="Border.row">
-    <Setter Property="Height" Value="58"/>
+    <Setter Property="Height" Value="56"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="Background" Value="Transparent"/>
   </Style>
-  <Style Selector="Border.row.own"><Setter Property="Background" Value="{DynamicResource OwnSoftBrush}"/></Style>
-  <Style Selector="Border.row.compact"><Setter Property="Height" Value="46"/></Style>
+  <Style Selector="Border.row.own"><Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/></Style>
+  <Style Selector="Border.row.compact"><Setter Property="Height" Value="44"/></Style>
   <Style Selector="Border.ownbar">
-    <Setter Property="Width" Value="3"/>
+    <Setter Property="Width" Value="2"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
-    <Setter Property="Background" Value="{DynamicResource OwnBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
   </Style>
   <Style Selector="Border.thead">
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="Padding" Value="14,10"/>
+    <Setter Property="Padding" Value="14,8"/>
   </Style>
 
   <!-- строки стинтов: открытый стинт подсвечен -->
-  <Style Selector="TextBlock.open"><Setter Property="Foreground" Value="{DynamicResource OwnBrush}"/></Style>
+  <Style Selector="TextBlock.open"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/></Style>
 
   <!-- ============ ФЛАГИ ============ -->
+  <!-- линия флага по верхнему краю шапки -->
   <Style Selector="Border.flagline">
-    <Setter Property="Height" Value="3"/>
+    <Setter Property="Height" Value="2"/>
     <Setter Property="VerticalAlignment" Value="Top"/>
-    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
+    <Setter Property="Background" Value="Transparent"/>
   </Style>
   <Style Selector="Border.flagline.green"><Setter Property="Background" Value="{DynamicResource FlagGreenBrush}"/></Style>
   <Style Selector="Border.flagline.yellow"><Setter Property="Background" Value="{DynamicResource FlagYellowBrush}"/></Style>
@@ -340,37 +432,36 @@
   <Style Selector="Border.flagline.white"><Setter Property="Background" Value="{DynamicResource FlagWhiteBrush}"/></Style>
   <Style Selector="Border.flagline.chequered"><Setter Property="Background" Value="{DynamicResource FlagWhiteBrush}"/></Style>
 
+  <!-- флаг в шапке: точка + текст, без заливки -->
   <Style Selector="Border.flagchip">
-    <Setter Property="Height" Value="32"/>
-    <Setter Property="Padding" Value="11,0,14,0"/>
-    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="Height" Value="26"/>
+    <Setter Property="Padding" Value="9,0"/>
+    <Setter Property="CornerRadius" Value="3"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
-    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+    <Setter Property="Background" Value="Transparent"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
-  <Style Selector="Border.flagchip.green">
-    <Setter Property="BorderBrush" Value="{DynamicResource FlagGreenBrush}"/>
-    <Setter Property="Background" Value="{DynamicResource GoodSoftBrush}"/>
+  <Style Selector="Border.flagchip > StackPanel > TextBlock">
+    <Setter Property="FontSize" Value="11.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.4"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
   </Style>
-  <Style Selector="Border.flagchip.yellow">
-    <Setter Property="BorderBrush" Value="{DynamicResource FlagYellowBrush}"/>
-    <Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/>
-  </Style>
-  <Style Selector="Border.flagchip.red">
-    <Setter Property="BorderBrush" Value="{DynamicResource FlagRedBrush}"/>
-    <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/>
-  </Style>
-  <Style Selector="Border.flagchip.white">
-    <Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/>
-  </Style>
-  <Style Selector="Border.flagchip.chequered">
-    <Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/>
-  </Style>
+  <Style Selector="Border.flagchip.green"><Setter Property="BorderBrush" Value="{DynamicResource FlagGreenBrush}"/><Setter Property="Background" Value="{DynamicResource GoodSoftBrush}"/></Style>
+  <Style Selector="Border.flagchip.yellow"><Setter Property="BorderBrush" Value="{DynamicResource FlagYellowBrush}"/><Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/></Style>
+  <Style Selector="Border.flagchip.red"><Setter Property="BorderBrush" Value="{DynamicResource FlagRedBrush}"/><Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/></Style>
+  <Style Selector="Border.flagchip.white"><Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+  <Style Selector="Border.flagchip.chequered"><Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+  <Style Selector="Border.flagchip.green TextBlock"><Setter Property="Foreground" Value="{DynamicResource FlagGreenBrush}"/></Style>
+  <Style Selector="Border.flagchip.yellow TextBlock"><Setter Property="Foreground" Value="{DynamicResource FlagYellowBrush}"/></Style>
+  <Style Selector="Border.flagchip.red TextBlock"><Setter Property="Foreground" Value="{DynamicResource FlagRedBrush}"/></Style>
+  <Style Selector="Border.flagchip.white TextBlock"><Setter Property="Foreground" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+  <Style Selector="Border.flagchip.chequered TextBlock"><Setter Property="Foreground" Value="{DynamicResource FlagWhiteBrush}"/></Style>
 
   <Style Selector="Ellipse.flagdot">
-    <Setter Property="Width" Value="10"/>
-    <Setter Property="Height" Value="10"/>
+    <Setter Property="Width" Value="7"/>
+    <Setter Property="Height" Value="7"/>
     <Setter Property="Fill" Value="{DynamicResource Text3Brush}"/>
   </Style>
   <Style Selector="Ellipse.flagdot.green"><Setter Property="Fill" Value="{DynamicResource FlagGreenBrush}"/></Style>
@@ -379,39 +470,45 @@
   <Style Selector="Ellipse.flagdot.white"><Setter Property="Fill" Value="{DynamicResource FlagWhiteBrush}"/></Style>
   <Style Selector="Ellipse.flagdot.chequered"><Setter Property="Fill" Value="{DynamicResource FlagWhiteBrush}"/></Style>
 
-  <!-- широкая полоса под шапкой при жёлтом / красном / белом / клетчатом флаге -->
+  <!-- тёмная полоса под шапкой: цветной кант слева и цветной текст -->
   <Style Selector="Border.flagbanner">
-    <Setter Property="Padding" Value="20,9"/>
-    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+    <Setter Property="Padding" Value="22,8"/>
+    <Setter Property="BorderThickness" Value="3,0,0,0"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
     <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
   </Style>
-  <Style Selector="Border.flagbanner.yellow"><Setter Property="Background" Value="{DynamicResource FlagYellowBrush}"/></Style>
-  <Style Selector="Border.flagbanner.red"><Setter Property="Background" Value="{DynamicResource FlagRedBrush}"/></Style>
-  <Style Selector="Border.flagbanner.white"><Setter Property="Background" Value="{DynamicResource FlagWhiteBrush}"/></Style>
-  <Style Selector="Border.flagbanner.chequered"><Setter Property="Background" Value="{DynamicResource FlagWhiteBrush}"/></Style>
-  <Style Selector="Border.flagbanner.yellow TextBlock">
-    <Setter Property="Foreground" Value="#10141B"/>
-  </Style>
-  <Style Selector="Border.flagbanner.red TextBlock">
-    <Setter Property="Foreground" Value="#10141B"/>
-  </Style>
-  <Style Selector="Border.flagbanner.white TextBlock">
-    <Setter Property="Foreground" Value="#10141B"/>
-  </Style>
-  <Style Selector="Border.flagbanner.chequered TextBlock">
-    <Setter Property="Foreground" Value="#10141B"/>
-  </Style>
+  <Style Selector="Border.flagbanner.yellow"><Setter Property="BorderBrush" Value="{DynamicResource FlagYellowBrush}"/></Style>
+  <Style Selector="Border.flagbanner.red"><Setter Property="BorderBrush" Value="{DynamicResource FlagRedBrush}"/></Style>
+  <Style Selector="Border.flagbanner.white"><Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+  <Style Selector="Border.flagbanner.chequered"><Setter Property="BorderBrush" Value="{DynamicResource FlagWhiteBrush}"/></Style>
 
-  <!-- плашки секторов S1–S3 в жёлтой полосе -->
+  <Style Selector="TextBlock.flagtext">
+    <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+  </Style>
+  <Style Selector="Border.flagbanner.yellow TextBlock.flagtext"><Setter Property="Foreground" Value="{DynamicResource FlagYellowBrush}"/></Style>
+  <Style Selector="Border.flagbanner.red TextBlock.flagtext"><Setter Property="Foreground" Value="{DynamicResource FlagRedBrush}"/></Style>
+  <Style Selector="Border.flagbanner.white TextBlock.flagtext"><Setter Property="Foreground" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+  <Style Selector="Border.flagbanner.chequered TextBlock.flagtext"><Setter Property="Foreground" Value="{DynamicResource FlagWhiteBrush}"/></Style>
+
+  <!-- плашки секторов S1–S3 -->
   <Style Selector="Border.sector">
-    <Setter Property="Padding" Value="9,2"/>
-    <Setter Property="CornerRadius" Value="6"/>
-    <Setter Property="Background" Value="#33000000"/>
+    <Setter Property="Padding" Value="7,1"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource Surface3Brush}"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
-  <Style Selector="Border.sector.on"><Setter Property="Background" Value="#10141B"/></Style>
-  <Style Selector="Border.flagbanner Border.sector.on TextBlock"><Setter Property="Foreground" Value="#FFC247"/></Style>
+  <Style Selector="Border.sector > TextBlock">
+    <Setter Property="FontSize" Value="10.5"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource Text3Brush}"/>
+  </Style>
+  <Style Selector="Border.sector.on">
+    <Setter Property="BorderBrush" Value="{DynamicResource WarnBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/>
+  </Style>
+  <Style Selector="Border.sector.on > TextBlock"><Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/></Style>
 
   <!-- ============ РАДАР: список «Рядом» ============ -->
   <Style Selector="Border.near">
@@ -422,13 +519,18 @@
   <Style Selector="Border.near.warn"><Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/></Style>
   <Style Selector="Border.near.danger"><Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/></Style>
   <Style Selector="Border.spotter">
-    <Setter Property="Padding" Value="16,14"/>
+    <Setter Property="Padding" Value="16,13"/>
+    <Setter Property="BorderThickness" Value="2,0,0,0"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource GoodBrush}"/>
     <Setter Property="Background" Value="{DynamicResource GoodSoftBrush}"/>
   </Style>
-  <Style Selector="Border.spotter.danger"><Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/></Style>
+  <Style Selector="Border.spotter.danger">
+    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}"/>
+  </Style>
   <Style Selector="Ellipse.spotdot">
-    <Setter Property="Width" Value="12"/>
-    <Setter Property="Height" Value="12"/>
+    <Setter Property="Width" Value="9"/>
+    <Setter Property="Height" Value="9"/>
     <Setter Property="Fill" Value="{DynamicResource GoodBrush}"/>
   </Style>
   <Style Selector="Ellipse.spotdot.danger"><Setter Property="Fill" Value="{DynamicResource DangerBrush}"/></Style>

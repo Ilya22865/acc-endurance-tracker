@@ -5,13 +5,13 @@
         x:DataType="vm:MainViewModel"
         Title="EnduranceHub"
         Icon="/Assets/EndHub.png"
-        Width="1380" Height="860" MinWidth="1240" MinHeight="700"
+        Width="1400" Height="880" MinWidth="1260" MinHeight="720"
         RequestedThemeVariant="Dark"
         Background="{DynamicResource BgBrush}"
         WindowStartupLocation="CenterScreen"
         FontFamily="Inter, Segoe UI, sans-serif">
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="208,*">
+  <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="216,*">
 
     <!-- ===================== ВЕРХНЯЯ ПОЛОСА ===================== -->
     <Border Grid.ColumnSpan="2" Background="{DynamicResource SurfaceBrush}"
@@ -23,11 +23,11 @@
                 Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
                 Classes.chequered="{Binding IsFlagChequered}"/>
 
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="28" Margin="20,17,20,12">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="18" Margin="24,13,24,11">
 
           <!-- трасса, сессия, флаг -->
-          <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-            <StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+            <StackPanel Spacing="1">
               <TextBlock Classes="h1" Text="{Binding TrackTitle}"/>
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Classes="secondary" Text="{Binding SessionTypeText}"/>
@@ -39,44 +39,48 @@
                     Classes.green="{Binding IsFlagGreen}" Classes.yellow="{Binding IsFlagYellow}"
                     Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
                     Classes.chequered="{Binding IsFlagChequered}">
-              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                 <Ellipse Classes="flagdot"
                          Classes.green="{Binding IsFlagGreen}" Classes.yellow="{Binding IsFlagYellow}"
                          Classes.red="{Binding IsFlagRed}" Classes.white="{Binding IsFlagWhite}"
                          Classes.chequered="{Binding IsFlagChequered}"/>
-                <TextBlock Text="{Binding FlagText}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding FlagText}" VerticalAlignment="Center"/>
               </StackPanel>
             </Border>
           </StackPanel>
 
+          <Border Grid.Column="1" Classes="vsep"/>
+
           <!-- до конца сессии -->
-          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <StackPanel Grid.Column="2" VerticalAlignment="Center">
             <TextBlock Classes="label" Text="ДО КОНЦА" HorizontalAlignment="Right"/>
             <TextBlock Classes="clock" Text="{Binding RemainingText}" HorizontalAlignment="Right"/>
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-              <TextBlock Classes="muted" FontSize="12" Text="{Binding ElapsedText}"/>
-              <TextBlock FontSize="12" Foreground="{DynamicResource WarnBrush}" Text="{Binding ClockNote}"/>
+              <TextBlock Classes="muted" FontSize="11" Text="{Binding ElapsedText}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource WarnBrush}" Text="{Binding ClockNote}"/>
             </StackPanel>
           </StackPanel>
 
+          <Border Grid.Column="3" Classes="vsep"/>
+
           <!-- наша машина -->
-          <Border Grid.Column="2" Padding="8,7,16,7" CornerRadius="10" VerticalAlignment="Center"
-                  Background="{DynamicResource Surface2Brush}"
-                  BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+          <Border Grid.Column="4" Classes="owncard">
             <StackPanel Orientation="Horizontal" Spacing="10">
               <Border Classes="numbadge own"><TextBlock Text="{Binding OwnNumberText}"/></Border>
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding OwnDriverName}" FontWeight="SemiBold"/>
-                <TextBlock Classes="secondary mono" FontSize="12" Text="{Binding OwnStatusText}"/>
+              <StackPanel VerticalAlignment="Center" Spacing="1">
+                <TextBlock Text="{Binding OwnDriverName}" FontSize="13" FontWeight="SemiBold"/>
+                <TextBlock Classes="secondary mono" FontSize="11" Text="{Binding OwnStatusText}"/>
               </StackPanel>
             </StackPanel>
           </Border>
 
+          <Border Grid.Column="5" Classes="vsep"/>
+
           <!-- подключение -->
-          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-            <TextBox Width="190" PlaceholderText="192.168.1.20:5261" Text="{Binding ServerUrl}"/>
+          <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBox Width="176" PlaceholderText="192.168.1.20:5261" Text="{Binding ServerUrl}"/>
             <Button Content="Подключить" Command="{Binding ConnectCommand}" Classes="primary"/>
-            <TextBlock Classes="muted" FontSize="12" MaxWidth="150" TextTrimming="CharacterEllipsis"
+            <TextBlock Classes="muted" FontSize="11" MaxWidth="140" TextTrimming="CharacterEllipsis"
                        VerticalAlignment="Center" Text="{Binding ConnectionStatus}"/>
           </StackPanel>
         </Grid>
@@ -88,39 +92,51 @@
             Classes.yellow="{Binding IsFlagYellow}" Classes.red="{Binding IsFlagRed}"
             Classes.white="{Binding IsFlagWhite}" Classes.chequered="{Binding IsFlagChequered}">
       <StackPanel Orientation="Horizontal" Spacing="14">
-        <TextBlock Text="{Binding FlagText}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
-        <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsFlagYellow}">
-          <Border Classes="sector" Classes.on="{Binding YellowS1}"><TextBlock Text="S1" FontSize="12" FontWeight="Bold"/></Border>
-          <Border Classes="sector" Classes.on="{Binding YellowS2}"><TextBlock Text="S2" FontSize="12" FontWeight="Bold"/></Border>
-          <Border Classes="sector" Classes.on="{Binding YellowS3}"><TextBlock Text="S3" FontSize="12" FontWeight="Bold"/></Border>
+        <TextBlock Classes="flagtext" Text="{Binding FlagText}" FontSize="12.5" FontWeight="Bold"
+                   LetterSpacing="1" VerticalAlignment="Center"/>
+        <StackPanel Orientation="Horizontal" Spacing="5" IsVisible="{Binding IsFlagYellow}">
+          <Border Classes="sector" Classes.on="{Binding YellowS1}"><TextBlock Text="S1"/></Border>
+          <Border Classes="sector" Classes.on="{Binding YellowS2}"><TextBlock Text="S2"/></Border>
+          <Border Classes="sector" Classes.on="{Binding YellowS3}"><TextBlock Text="S3"/></Border>
         </StackPanel>
-        <TextBlock Text="{Binding FlagDetail}" FontSize="13" VerticalAlignment="Center"/>
-        <TextBlock Text="{Binding PlayerFlagText}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"
+        <TextBlock Classes="flagtext" Text="{Binding FlagDetail}" FontSize="12" VerticalAlignment="Center"/>
+        <TextBlock Classes="flagtext" Text="{Binding PlayerFlagText}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"
                    IsVisible="{Binding HasPlayerFlag}"/>
       </StackPanel>
     </Border>
 
     <!-- ===================== НАВИГАЦИЯ ===================== -->
     <Border Grid.Row="2" Background="{DynamicResource RailBrush}"
-            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0" Padding="10,14">
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
-        <!-- Логотип в левом верхнем углу приложения -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="8,4,8,14">
-          <Image Width="30" Height="30" Source="/Assets/EndHub.png"/>
-          <TextBlock Text="EnduranceHub" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <!-- Логотип и название -->
+        <StackPanel DockPanel.Dock="Top" Margin="16,18,16,0" Spacing="1">
+          <StackPanel Orientation="Horizontal" Spacing="9">
+            <Image Width="24" Height="24" Source="/Assets/EndHub.png"/>
+            <TextBlock Classes="brand" Text="EnduranceHub"/>
+          </StackPanel>
+          <TextBlock Classes="brandsub" Text="RACE CONTROL" Margin="33,3,0,0"/>
         </StackPanel>
+        <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource LineBrush}" Margin="0,16,0,10"/>
+
+        <!-- версия внизу панели -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="18,10,18,14" Spacing="3">
+          <TextBlock Classes="label" Text="ВЕРСИЯ"/>
+          <TextBlock Classes="navversion" Text="{Binding CurrentVersionText}"/>
+        </StackPanel>
+
         <ListBox Classes="nav" ItemsSource="{Binding NavItems}"
                  SelectedIndex="{Binding SelectedPageIndex, Mode=TwoWay}">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:NavItem">
               <Panel>
-                <StackPanel Orientation="Horizontal" Spacing="12" Margin="12,10">
-                  <Path Classes="icon" Data="{Binding Icon}"/>
-                  <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="14,0" Height="40">
+                  <Path Classes="icon" Data="{Binding Icon}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
                 </StackPanel>
                 <!-- Разделитель рисуется поверх верхнего отступа и не увеличивает высоту
                      пункта: иначе ховер «Сервера» был выше остальных. -->
-                <Border Height="1" Margin="6,0" VerticalAlignment="Top"
+                <Border Height="1" Margin="14,0" VerticalAlignment="Top"
                         Background="{DynamicResource LineBrush}" IsVisible="{Binding IsGroupStart}"/>
               </Panel>
             </DataTemplate>
@@ -130,7 +146,7 @@
     </Border>
 
     <!-- ===================== СТРАНИЦЫ ===================== -->
-    <Panel Grid.Row="2" Grid.Column="1" Margin="20,16,20,20">
+    <Panel Grid.Row="2" Grid.Column="1" Margin="24,18,24,20">
 
       <!-- ============ 0 · ПОЗИЦИИ ============ -->
       <Grid IsVisible="{Binding IsPage0}" ColumnDefinitions="*,340" ColumnSpacing="16">
@@ -145,12 +161,12 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource BestBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Classes="secondary" FontSize="12" Text="Лучший круг сессии"/>
+                    <Border Width="8" Height="8" CornerRadius="1" Background="{DynamicResource BestBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="secondary" FontSize="11.5" Text="Лучший круг сессии"/>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource GoodBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Classes="secondary" FontSize="12" Text="Личный лучший"/>
+                    <Border Width="8" Height="8" CornerRadius="1" Background="{DynamicResource GoodBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Classes="secondary" FontSize="11.5" Text="Личный лучший"/>
                   </StackPanel>
                 </StackPanel>
               </Grid>
@@ -269,7 +285,7 @@
                   <StackPanel Grid.Column="1">
                     <TextBlock Classes="h2" Text="{Binding SelectedStanding.Driver}" TextTrimming="CharacterEllipsis"/>
                     <TextBlock Classes="secondary" Text="{Binding SelectedStanding.TeamName}" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Classes="muted" FontSize="12" Text="{Binding SelectedStanding.CarModel}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Classes="muted" FontSize="11.5" Text="{Binding SelectedStanding.CarModel}" TextTrimming="CharacterEllipsis"/>
                   </StackPanel>
                 </Grid>
 
@@ -284,7 +300,7 @@
                       <TextBlock Classes="secondary" VerticalAlignment="Bottom" Margin="0,0,0,6"
                                  Text="{Binding SelectedStanding.GapToOurLabel}"/>
                     </StackPanel>
-                    <TextBlock FontSize="13" FontWeight="Medium" Text="{Binding SelectedStanding.TrendText}"
+                    <TextBlock FontSize="12.5" FontWeight="Medium" Text="{Binding SelectedStanding.TrendText}"
                                Foreground="{DynamicResource Text2Brush}"
                                Classes.good="{Binding SelectedStanding.TrendGood}"
                                Classes.bad="{Binding SelectedStanding.TrendBad}"/>
@@ -337,7 +353,7 @@
                   <TextBlock Classes="secondary" Text="Пройдено кругов"/>
                   <TextBlock Grid.Column="1" Classes="mono" FontSize="16" FontWeight="SemiBold" Text="{Binding SelectedStanding.Laps}"/>
                 </Grid>
-                <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding !IsRaceSession}"
+                <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap" IsVisible="{Binding !IsRaceSession}"
                            Text="В квалификации и практике отрывы не показываются — позиции считаются по лучшему кругу."/>
               </StackPanel>
             </ScrollViewer>
@@ -403,7 +419,7 @@
               <TextBlock Classes="h2" Text="{Binding TelemetryDriverName}"/>
             </StackPanel>
             <TextBlock Grid.Column="1" Classes="secondary" VerticalAlignment="Center" Text="{Binding TelemetryStatus}"/>
-            <TextBlock Grid.Column="2" Classes="mono" FontSize="15" Foreground="{DynamicResource Text2Brush}"
+            <TextBlock Grid.Column="2" Classes="mono" FontSize="14" Foreground="{DynamicResource Text2Brush}"
                        VerticalAlignment="Center" Text="{Binding TelemetryRateText}"/>
             <ListBox Grid.Column="3" Classes="seg" SelectedIndex="{Binding TelemetryWindowIndex, Mode=TwoWay}" VerticalAlignment="Center">
               <ListBoxItem Content="15 с"/>
@@ -450,8 +466,14 @@
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="h2" Text="Педали"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14">
-                      <TextBlock FontSize="12" Foreground="{DynamicResource GoodBrush}" Text="● Газ"/>
-                      <TextBlock FontSize="12" Foreground="{DynamicResource DangerBrush}" Text="● Тормоз"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Border Width="8" Height="8" CornerRadius="1" Background="{DynamicResource GoodBrush}"/>
+                        <TextBlock FontSize="11.5" Foreground="{DynamicResource Text2Brush}" Text="Газ"/>
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Border Width="8" Height="8" CornerRadius="1" Background="{DynamicResource DangerBrush}"/>
+                        <TextBlock FontSize="11.5" Foreground="{DynamicResource Text2Brush}" Text="Тормоз"/>
+                      </StackPanel>
                     </StackPanel>
                   </Grid>
                 </Border>
@@ -466,7 +488,7 @@
                 <Border Classes="cardhead" Padding="16,10">
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="h2" Text="Руль"/>
-                    <TextBlock Grid.Column="1" FontSize="12" Foreground="{DynamicResource InfoBrush}" Text="масштаб подбирается автоматически"/>
+                    <TextBlock Grid.Column="1" FontSize="11.5" Foreground="{DynamicResource Text3Brush}" Text="масштаб подбирается автоматически"/>
                   </Grid>
                 </Border>
                 <Canvas Grid.Row="1" x:Name="SteerCanvas" Margin="8" ClipToBounds="True" Background="Transparent"/>
@@ -478,23 +500,23 @@
             <StackPanel Spacing="16">
               <TextBlock Classes="label" Text="СТАТИСТИКА СТИНТА"/>
               <StackPanel>
-                <TextBlock Classes="muted" FontSize="12" Text="Средний газ"/>
+                <TextBlock Classes="muted" FontSize="11.5" Text="Средний газ"/>
                 <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource GoodBrush}" Text="{Binding TelemetryAvgGas}"/>
               </StackPanel>
               <StackPanel>
-                <TextBlock Classes="muted" FontSize="12" Text="Средний тормоз"/>
+                <TextBlock Classes="muted" FontSize="11.5" Text="Средний тормоз"/>
                 <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource DangerBrush}" Text="{Binding TelemetryAvgBrake}"/>
               </StackPanel>
               <StackPanel>
-                <TextBlock Classes="muted" FontSize="12" Text="Максимальный поворот руля"/>
+                <TextBlock Classes="muted" FontSize="11.5" Text="Максимальный поворот руля"/>
                 <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource InfoBrush}" Text="{Binding TelemetryMaxSteer}"/>
               </StackPanel>
               <StackPanel>
-                <TextBlock Classes="muted" FontSize="12" Text="Время на тормозе"/>
+                <TextBlock Classes="muted" FontSize="11.5" Text="Время на тормозе"/>
                 <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Text="{Binding TelemetryBrakeTime}"/>
               </StackPanel>
               <StackPanel>
-                <TextBlock Classes="muted" FontSize="12" Text="Время с полным газом"/>
+                <TextBlock Classes="muted" FontSize="11.5" Text="Время с полным газом"/>
                 <TextBlock Classes="mono" FontSize="24" FontWeight="SemiBold" Text="{Binding TelemetryFullThrottleTime}"/>
               </StackPanel>
             </StackPanel>
@@ -513,7 +535,7 @@
                   <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
                 </StackPanel>
                 <CheckBox Grid.Column="1" Content="Зеркало лево/право" IsChecked="{Binding RadarMirror, Mode=TwoWay}"
-                          VerticalAlignment="Center" FontSize="12"/>
+                          VerticalAlignment="Center"/>
                 <ListBox Grid.Column="2" Classes="seg" SelectedIndex="{Binding RadarRangeIndex, Mode=TwoWay}">
                   <ListBoxItem Content="20 м"/>
                   <ListBoxItem Content="40 м"/>
@@ -522,7 +544,7 @@
               </Grid>
             </Border>
             <Canvas Grid.Row="1" x:Name="RadarCanvas" ClipToBounds="True" Background="Transparent"/>
-            <TextBlock Grid.Row="2" Classes="muted" FontSize="12" Margin="16,6,16,12" HorizontalAlignment="Center"
+            <TextBlock Grid.Row="2" Classes="muted" FontSize="11.5" Margin="16,6,16,12" HorizontalAlignment="Center"
                        Text="{Binding RadarStatus}"/>
           </Grid>
         </Border>
@@ -533,7 +555,7 @@
             <Border Classes="spotter" Classes.danger="{Binding SpotterDanger}">
               <StackPanel Orientation="Horizontal" Spacing="12">
                 <Ellipse Classes="spotdot" Classes.danger="{Binding SpotterDanger}"/>
-                <TextBlock Classes="spottext" Classes.danger="{Binding SpotterDanger}" FontSize="18" FontWeight="SemiBold" Text="{Binding SpotterText}"/>
+                <TextBlock Classes="spottext" Classes.danger="{Binding SpotterDanger}" FontSize="17" FontWeight="SemiBold" Text="{Binding SpotterText}"/>
               </StackPanel>
             </Border>
             <ItemsControl ItemsSource="{Binding RadarNear}">
@@ -544,9 +566,9 @@
                       <Border Classes="numbadge"><TextBlock Text="{Binding Number}"/></Border>
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock FontWeight="SemiBold" Text="{Binding Where}"/>
-                        <TextBlock Classes="muted" FontSize="12" Text="{Binding ClosingText}"/>
+                        <TextBlock Classes="muted" FontSize="11.5" Text="{Binding ClosingText}"/>
                       </StackPanel>
-                      <TextBlock Grid.Column="2" Classes="mono" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center"
+                      <TextBlock Grid.Column="2" Classes="mono" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"
                                  Text="{Binding DistanceText}"/>
                     </Grid>
                   </Border>
@@ -586,8 +608,8 @@
                     <Border Classes="row compact" Padding="14,0">
                       <Grid ColumnDefinitions="*,100,64" VerticalAlignment="Center">
                         <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-                        <TextBlock Grid.Column="1" Classes="muted mono" FontSize="12" Text="{Binding ModifiedText}"/>
-                        <TextBlock Grid.Column="2" Classes="muted mono" FontSize="12" Text="{Binding SizeText}"/>
+                        <TextBlock Grid.Column="1" Classes="muted mono" FontSize="11.5" Text="{Binding ModifiedText}"/>
+                        <TextBlock Grid.Column="2" Classes="muted mono" FontSize="11.5" Text="{Binding SizeText}"/>
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -615,15 +637,20 @@
                     <DataTemplate x:DataType="vm:SetupSection">
                       <Border Width="320" Margin="0,0,14,14" Classes="card" Background="{DynamicResource BgBrush}">
                         <StackPanel>
-                          <Border Classes="cardhead" Background="{DynamicResource Surface2Brush}" Padding="16,10">
-                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                          <Border Classes="cardhead" Background="{DynamicResource Surface2Brush}" Padding="0"
+                                  BorderThickness="0,0,0,1" BorderBrush="{DynamicResource LineBrush}">
+                            <Grid ColumnDefinitions="2,*">
+                              <!-- цветная черта слева: цвет приглушённый и одинаков во всех сетапах -->
+                              <Border Background="{Binding Accent}"/>
+                              <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" Margin="14,10,16,10"/>
+                            </Grid>
                           </Border>
                           <ItemsControl ItemsSource="{Binding Items}" Margin="16,10,16,14">
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="vm:SetupValue">
                                 <Grid ColumnDefinitions="*,Auto" Margin="0,4">
-                                  <TextBlock Text="{Binding Key}" Classes="secondary" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
-                                  <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="mono" FontSize="14" FontWeight="SemiBold"/>
+                                  <TextBlock Text="{Binding Key}" Classes="secondary" FontSize="11.5" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
+                                  <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="mono" FontSize="13.5" FontWeight="SemiBold"/>
                                 </Grid>
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -649,7 +676,7 @@
                   <TextBlock Classes="h2" Text="Карта трассы"/>
                   <TextBlock Classes="muted" Text="{Binding MapTrackName}"/>
                 </StackPanel>
-                <TextBlock Classes="muted" FontSize="12"
+                <TextBlock Classes="muted" FontSize="11.5"
                            Text="Контур записывается автоматически после чистого круга без пит-стопа и сохраняется для этой трассы."/>
               </StackPanel>
             </Border>
@@ -660,16 +687,16 @@
           <StackPanel>
             <Border Classes="cardhead" Padding="16,12"><TextBlock Classes="h2" Text="Погода"/></Border>
             <StackPanel Margin="16,6,16,16" Spacing="14">
-              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Температура воздуха"/>
-                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource WarnBrush}" Text="{Binding WeatherAir}"/></StackPanel>
-              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Температура трека"/>
-                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource OwnBrush}" Text="{Binding WeatherTrack}"/></StackPanel>
-              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Дождь"/>
-                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherRain}"/></StackPanel>
-              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Облачность"/>
-                <TextBlock Classes="big" FontSize="30" Text="{Binding WeatherClouds}"/></StackPanel>
-              <StackPanel><TextBlock Classes="muted" FontSize="12" Text="Влажность трека"/>
-                <TextBlock Classes="big" FontSize="30" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherWetness}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="11.5" Text="Температура воздуха"/>
+                <TextBlock Classes="big" FontSize="29" Foreground="{DynamicResource WarnBrush}" Text="{Binding WeatherAir}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="11.5" Text="Температура трека"/>
+                <TextBlock Classes="big" FontSize="29" Foreground="{DynamicResource OwnBrush}" Text="{Binding WeatherTrack}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="11.5" Text="Дождь"/>
+                <TextBlock Classes="big" FontSize="29" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherRain}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="11.5" Text="Облачность"/>
+                <TextBlock Classes="big" FontSize="29" Text="{Binding WeatherClouds}"/></StackPanel>
+              <StackPanel><TextBlock Classes="muted" FontSize="11.5" Text="Влажность трека"/>
+                <TextBlock Classes="big" FontSize="29" Foreground="{DynamicResource InfoBrush}" Text="{Binding WeatherWetness}"/></StackPanel>
             </StackPanel>
           </StackPanel>
         </Border>
@@ -683,7 +710,7 @@
               <TextBlock Classes="h2" Text="Сервер"/>
               <Border Classes="chip" Classes.ok="{Binding IsServerRunning}"><TextBlock Text="{Binding ServerStatus}"/></Border>
             </StackPanel>
-            <TextBlock Grid.Column="1" Classes="muted" FontSize="12" VerticalAlignment="Center"
+            <TextBlock Grid.Column="1" Classes="muted" FontSize="11.5" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" Text="{Binding ServerExePath}"/>
             <Button Grid.Column="2" Content="Запустить" Command="{Binding StartServerCommand}" Classes="primary" IsEnabled="{Binding !IsServerRunning}"/>
             <Button Grid.Column="3" Content="Остановить" Command="{Binding StopServerCommand}" IsEnabled="{Binding IsServerRunning}"/>
@@ -696,7 +723,7 @@
                    ScrollViewer.HorizontalScrollBarVisibility="Auto">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11.5"
                            Foreground="{DynamicResource Text2Brush}" TextWrapping="NoWrap"/>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -712,7 +739,7 @@
               <TextBlock Classes="h2" Text="Агент"/>
               <Border Classes="chip" Classes.ok="{Binding IsAgentRunning}"><TextBlock Text="{Binding AgentStatus}"/></Border>
             </StackPanel>
-            <TextBlock Grid.Column="1" Classes="muted" FontSize="12" VerticalAlignment="Center"
+            <TextBlock Grid.Column="1" Classes="muted" FontSize="11.5" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" Text="{Binding AgentExePath}"/>
             <Button Grid.Column="2" Content="Запустить" Command="{Binding StartAgentCommand}" Classes="primary" IsEnabled="{Binding !IsAgentRunning}"/>
             <Button Grid.Column="3" Content="Остановить" Command="{Binding StopAgentCommand}" IsEnabled="{Binding IsAgentRunning}"/>
@@ -730,10 +757,10 @@
             </ComboBox>
             <Button Grid.Column="2" Content="Обновить список" Command="{Binding RefreshTeamDriversCommand}"/>
             <CheckBox Grid.Column="3" Content="Тестовые данные (без ACC)" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="4" Classes="muted" FontSize="12" VerticalAlignment="Center" HorizontalAlignment="Right"
+            <TextBlock Grid.Column="4" Classes="muted" FontSize="11.5" VerticalAlignment="Center" HorizontalAlignment="Right"
                        TextWrapping="Wrap" MaxWidth="360"
                        Text="Агент запускают на ПК того, кто ведёт машину. При смене пилота остановите агента на старом ПК и запустите на новом — стинт разделится автоматически. Адрес сервера берётся из шапки."/>
-            <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Classes="muted" FontSize="12"
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Classes="muted" FontSize="11.5"
                        Text="Если телеметрия не идёт, откройте %LOCALAPPDATA%\EnduranceHub\logs\agent.log — там видны причина выхода и ответы сервера."/>
           </Grid>
         </Border>
@@ -742,7 +769,7 @@
                    ScrollViewer.HorizontalScrollBarVisibility="Auto">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="x:String">
-                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                <TextBlock Text="{Binding}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11.5"
                            Foreground="{DynamicResource Text2Brush}" TextWrapping="NoWrap"/>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -770,7 +797,7 @@
             <StackPanel Spacing="12">
               <TextBlock Classes="label" Text="РАДАР"/>
               <CheckBox Content="Зеркало лево/право" IsChecked="{Binding RadarMirror, Mode=TwoWay}"/>
-              <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="Если машина слева от вас нарисована справа — переключите."/>
+              <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap" Text="Если машина слева от вас нарисована справа — переключите."/>
             </StackPanel>
           </Border>
 
@@ -782,7 +809,7 @@
                 <Button Content="В CSV" Command="{Binding ExportToCsvCommand}"/>
                 <Button Content="Очистить автосохранение" Command="{Binding ClearAutoSaveCommand}"/>
               </StackPanel>
-              <TextBlock Classes="muted" FontSize="12" Text="Файлы сохраняются в папку «Загрузки»."/>
+              <TextBlock Classes="muted" FontSize="11.5" Text="Файлы сохраняются в папку «Загрузки»."/>
             </StackPanel>
           </Border>
 
@@ -801,7 +828,7 @@
                 <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Width="200" Height="6"
                              IsVisible="{Binding IsCheckingUpdate}" VerticalAlignment="Center"/>
               </StackPanel>
-              <Border Classes="panel"><TextBlock Classes="secondary" FontSize="12" TextWrapping="Wrap" Text="{Binding UpdateStatus}"/></Border>
+              <Border Classes="panel"><TextBlock Classes="secondary" FontSize="11.5" TextWrapping="Wrap" Text="{Binding UpdateStatus}"/></Border>
             </StackPanel>
           </Border>
 
@@ -818,14 +845,15 @@
     </Panel>
 
     <!-- ===================== СТРОКА СОСТОЯНИЯ ===================== -->
-    <Border Grid.Row="3" Grid.ColumnSpan="2" Background="{DynamicResource RailBrush}" Padding="20,6"
+    <Border Grid.Row="3" Grid.ColumnSpan="2" Background="{DynamicResource RailBrush}" Padding="24,0" Height="28"
             BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock Classes="muted" FontSize="12" Text="Обновлено"/>
-          <TextBlock Classes="mono" FontSize="12" Foreground="{DynamicResource Text2Brush}" Text="{Binding LastUpdate}"/>
+        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+          <Border Width="5" Height="5" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+          <TextBlock Classes="muted" FontSize="11" Text="Обновлено"/>
+          <TextBlock Classes="mono" FontSize="11" Foreground="{DynamicResource Text2Brush}" Text="{Binding LastUpdate}"/>
         </StackPanel>
-        <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="{Binding ServerUrl}"/>
+        <TextBlock Grid.Column="2" Classes="muted" FontSize="11" VerticalAlignment="Center" Text="{Binding ServerUrl}"/>
       </Grid>
     </Border>
   </Grid>

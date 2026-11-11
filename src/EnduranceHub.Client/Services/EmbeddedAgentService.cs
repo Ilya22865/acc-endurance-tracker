@@ -37,7 +37,7 @@ public sealed class EmbeddedAgentService : IDisposable
         {
             if (!File.Exists(agentExePath))
             {
-                AddLog($"❌ Файл агента не найден: {agentExePath}");
+                AddLog($"Файл агента не найден: {agentExePath}");
                 return false;
             }
 
@@ -45,7 +45,7 @@ public sealed class EmbeddedAgentService : IDisposable
             // Они продолжают отправлять телеметрию и дублируют данные.
             await StopStaleAgentProcessesAsync();
 
-            AddLog($"🚀 Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}, FakeData={useFakeData}");
+            AddLog($"Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}, FakeData={useFakeData}");
 
             var args = $"--server {serverUrl} --driver-index {driverIndex} --parent-pid {Environment.ProcessId}";
             if (useFakeData)
@@ -85,7 +85,7 @@ public sealed class EmbeddedAgentService : IDisposable
             {
                 if (string.IsNullOrEmpty(e.Data)) return;
                 ChildProcessLog.Write("agent.log", "[stderr] " + e.Data);
-                AddLog($"⚠️ {e.Data}");
+                AddLog($"{e.Data}");
             };
 
             process.Exited += (sender, e) =>
@@ -93,7 +93,7 @@ public sealed class EmbeddedAgentService : IDisposable
                 var exitCode = TryGetExitCode(process);
                 _isRunning = false;
                 ChildProcessLog.Write("agent.log", $"=== Agent exited with code {exitCode} ===");
-                AddLog($"🛑 Agent остановлен (код {exitCode})");
+                AddLog($"Agent остановлен (код {exitCode})");
                 OnStateChanged?.Invoke(false);
             };
 
@@ -101,7 +101,7 @@ public sealed class EmbeddedAgentService : IDisposable
 
             if (!_agentProcess.Start())
             {
-                AddLog("❌ Не удалось запустить процесс агента");
+                AddLog("Не удалось запустить процесс агента");
                 return false;
             }
 
@@ -109,7 +109,7 @@ public sealed class EmbeddedAgentService : IDisposable
             _agentProcess.BeginErrorReadLine();
 
             _isRunning = true;
-            AddLog("✅ Agent запущен");
+            AddLog("Agent запущен");
             OnStateChanged?.Invoke(true);
 
             await Task.Delay(500);
@@ -118,7 +118,7 @@ public sealed class EmbeddedAgentService : IDisposable
         }
         catch (Exception ex)
         {
-            AddLog($"❌ Ошибка запуска агента: {ex.Message}");
+            AddLog($"Ошибка запуска агента: {ex.Message}");
             ChildProcessLog.Write("agent.log", "=== Agent start failed: " + ex + " ===");
             _logger.LogError(ex, "Failed to start embedded agent");
             return false;
@@ -140,7 +140,7 @@ public sealed class EmbeddedAgentService : IDisposable
 
         try
         {
-            AddLog("⏹️ Остановка Agent...");
+            AddLog("Остановка Agent...");
 
             if (!_agentProcess.HasExited)
             {
@@ -150,17 +150,17 @@ public sealed class EmbeddedAgentService : IDisposable
             }
 
             _isRunning = false;
-            AddLog("🛑 Agent остановлен");
+            AddLog("Agent остановлен");
             OnStateChanged?.Invoke(false);
         }
         catch (OperationCanceledException)
         {
-            AddLog("⚠️ Agent не завершился за 5 секунд");
+            AddLog("Agent не завершился за 5 секунд");
             _logger.LogWarning("Timed out waiting for embedded agent process to exit");
         }
         catch (Exception ex)
         {
-            AddLog($"⚠️ Ошибка при остановке: {ex.Message}");
+            AddLog($"Ошибка при остановке: {ex.Message}");
             _logger.LogError(ex, "Error stopping embedded agent");
         }
         finally
@@ -179,7 +179,7 @@ public sealed class EmbeddedAgentService : IDisposable
         }
         catch (Exception ex)
         {
-            AddLog($"⚠️ Не удалось проверить старые процессы Agent: {ex.Message}");
+            AddLog($"Не удалось проверить старые процессы Agent: {ex.Message}");
             _logger.LogWarning(ex, "Failed to enumerate stale agent processes");
             return;
         }
@@ -191,7 +191,7 @@ public sealed class EmbeddedAgentService : IDisposable
                 if (process.HasExited || (_agentProcess != null && process.Id == _agentProcess.Id))
                     continue;
 
-                AddLog($"⚠️ Найден старый процесс Agent (PID {process.Id}), останавливаю...");
+                AddLog($"Найден старый процесс Agent (PID {process.Id}), останавливаю...");
                 process.Kill(entireProcessTree: true);
 
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -199,7 +199,7 @@ public sealed class EmbeddedAgentService : IDisposable
             }
             catch (Exception ex)
             {
-                AddLog($"⚠️ Не удалось остановить старый Agent (PID {process.Id}): {ex.Message}");
+                AddLog($"Не удалось остановить старый Agent (PID {process.Id}): {ex.Message}");
                 _logger.LogWarning(ex, "Failed to stop stale agent process {Pid}", process.Id);
             }
             finally

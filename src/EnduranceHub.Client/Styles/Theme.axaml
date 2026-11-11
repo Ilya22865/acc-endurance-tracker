@@ -1,43 +1,59 @@
-<!-- Цвета и шрифты приложения. Цвет несёт смысл и одинаков на всех экранах:
-     Own — наша машина, Best — лучший круг сессии, Good — личный лучший / норма,
-     Warn — внимание / боксы, Danger — опасность / тормоз, Info — руль / справочное.
-     Такие же значения лежат в Palette.cs (для графиков, радара и карты, которые рисуются из кода). -->
+<!-- Строгая палитра приложения: графит, белый текст и один сигнальный акцент.
+     Цвет несёт смысл и одинаков на всех экранах:
+     Accent/Own — наша машина и активные элементы, Best — лучший круг сессии,
+     Good — личный лучший / норма, Warn — внимание / боксы,
+     Danger — опасность / тормоз, Info — руль / справочное.
+     Такие же значения лежат в Palette.cs (для графиков, радара и карты). -->
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <SolidColorBrush x:Key="BgBrush" Color="#151922"/>
-  <SolidColorBrush x:Key="RailBrush" Color="#10141B"/>
-  <SolidColorBrush x:Key="SurfaceBrush" Color="#1C222E"/>
-  <SolidColorBrush x:Key="Surface2Brush" Color="#252D3B"/>
-  <SolidColorBrush x:Key="Surface3Brush" Color="#2F394B"/>
-  <SolidColorBrush x:Key="LineBrush" Color="#2C3444"/>
-  <SolidColorBrush x:Key="LineStrongBrush" Color="#3D485C"/>
+  <SolidColorBrush x:Key="BgBrush" Color="#0B0D10"/>
+  <SolidColorBrush x:Key="RailBrush" Color="#080A0C"/>
+  <SolidColorBrush x:Key="SurfaceBrush" Color="#111419"/>
+  <SolidColorBrush x:Key="Surface2Brush" Color="#171B21"/>
+  <SolidColorBrush x:Key="Surface3Brush" Color="#21262E"/>
+  <SolidColorBrush x:Key="LineBrush" Color="#232830"/>
+  <SolidColorBrush x:Key="LineStrongBrush" Color="#343B45"/>
 
-  <SolidColorBrush x:Key="TextBrush" Color="#EAEEF5"/>
-  <SolidColorBrush x:Key="Text2Brush" Color="#A6B0C3"/>
-  <SolidColorBrush x:Key="Text3Brush" Color="#748096"/>
+  <SolidColorBrush x:Key="TextBrush" Color="#F0F2F5"/>
+  <SolidColorBrush x:Key="Text2Brush" Color="#A4ABB5"/>
+  <SolidColorBrush x:Key="Text3Brush" Color="#6F7782"/>
 
-  <SolidColorBrush x:Key="OwnBrush" Color="#FF6B4A"/>
-  <SolidColorBrush x:Key="OwnSoftBrush" Color="#22FF6B4A"/>
-  <SolidColorBrush x:Key="OnOwnBrush" Color="#1B0E09"/>
-  <SolidColorBrush x:Key="BestBrush" Color="#C084FC"/>
-  <SolidColorBrush x:Key="GoodBrush" Color="#34D399"/>
-  <SolidColorBrush x:Key="GoodSoftBrush" Color="#2434D399"/>
-  <SolidColorBrush x:Key="WarnBrush" Color="#FFC247"/>
-  <SolidColorBrush x:Key="WarnSoftBrush" Color="#26FFC247"/>
-  <SolidColorBrush x:Key="DangerBrush" Color="#FF4D6D"/>
-  <SolidColorBrush x:Key="DangerSoftBrush" Color="#26FF4D6D"/>
-  <SolidColorBrush x:Key="InfoBrush" Color="#5AA9FF"/>
-  <SolidColorBrush x:Key="InfoSoftBrush" Color="#245AA9FF"/>
+  <!-- сигнальный акцент: наша машина, активная навигация, главные кнопки -->
+  <SolidColorBrush x:Key="AccentBrush" Color="#FF5A1F"/>
+  <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF7139"/>
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="#1FFF5A1F"/>
+  <!-- тот же акцент для штатных элементов Fluent (чекбоксы, фокус) -->
+  <Color x:Key="SystemAccentColor">#FF5A1F</Color>
+  <Color x:Key="SystemAccentColorLight1">#FF7139</Color>
+  <Color x:Key="SystemAccentColorLight2">#FF8C5C</Color>
+  <Color x:Key="SystemAccentColorLight3">#FFA77F</Color>
+  <Color x:Key="SystemAccentColorDark1">#D9480F</Color>
+  <Color x:Key="SystemAccentColorDark2">#B33A0B</Color>
+  <Color x:Key="SystemAccentColorDark3">#8C2C07</Color>
+  <!-- «своя» машина: белая табличка с тёмным номером, как номер на кузове -->
+  <SolidColorBrush x:Key="OwnBrush" Color="#F2F4F7"/>
+  <SolidColorBrush x:Key="OwnSoftBrush" Color="#10FFFFFF"/>
+  <SolidColorBrush x:Key="OnOwnBrush" Color="#0B0D10"/>
 
-  <SolidColorBrush x:Key="FlagGreenBrush" Color="#2FD07A"/>
-  <SolidColorBrush x:Key="FlagYellowBrush" Color="#FFC247"/>
-  <SolidColorBrush x:Key="FlagRedBrush" Color="#FF4D6D"/>
-  <SolidColorBrush x:Key="FlagWhiteBrush" Color="#F2F4F8"/>
+  <SolidColorBrush x:Key="BestBrush" Color="#A78BFA"/>
+  <SolidColorBrush x:Key="GoodBrush" Color="#5BB98C"/>
+  <SolidColorBrush x:Key="GoodSoftBrush" Color="#1F5BB98C"/>
+  <SolidColorBrush x:Key="WarnBrush" Color="#D9A441"/>
+  <SolidColorBrush x:Key="WarnSoftBrush" Color="#1FD9A441"/>
+  <SolidColorBrush x:Key="DangerBrush" Color="#F2555A"/>
+  <SolidColorBrush x:Key="DangerSoftBrush" Color="#1FF2555A"/>
+  <SolidColorBrush x:Key="InfoBrush" Color="#6B9FD4"/>
+  <SolidColorBrush x:Key="InfoSoftBrush" Color="#1F6B9FD4"/>
+
+  <SolidColorBrush x:Key="FlagGreenBrush" Color="#5BB98C"/>
+  <SolidColorBrush x:Key="FlagYellowBrush" Color="#D9A441"/>
+  <SolidColorBrush x:Key="FlagRedBrush" Color="#F2555A"/>
+  <SolidColorBrush x:Key="FlagWhiteBrush" Color="#F2F4F7"/>
 
   <!-- Bahnschrift есть в Windows 10+ (узкий «гоночный» шрифт для цифр); если нет — Consolas -->
   <FontFamily x:Key="NumFont">Bahnschrift, Consolas, Segoe UI</FontFamily>
 
-  <CornerRadius x:Key="RadiusCard">12</CornerRadius>
-  <CornerRadius x:Key="RadiusControl">8</CornerRadius>
+  <CornerRadius x:Key="RadiusCard">6</CornerRadius>
+  <CornerRadius x:Key="RadiusControl">4</CornerRadius>
 </ResourceDictionary>

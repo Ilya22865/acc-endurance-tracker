@@ -281,7 +281,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(ServerExePath))
         {
-            ServerLogLines.Add("❌ Путь к EnduranceHub.Server.exe не указан");
+            ServerLogLines.Add("Путь к EnduranceHub.Server.exe не указан");
             return;
         }
         await (_embeddedServer?.StartAsync(ServerExePath) ?? Task.CompletedTask);
@@ -298,7 +298,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(AgentExePath))
         {
-            AgentLogLines.Add("❌ Путь к EnduranceHub.Agent.exe не указан");
+            AgentLogLines.Add("Путь к EnduranceHub.Agent.exe не указан");
             return;
         }
         await (_embeddedAgent?.StartAsync(AgentExePath, NormalizeServerUrl(ServerUrl), SelectedDriverIndex, useFakeData: AgentUseFakeData) ?? Task.CompletedTask);
@@ -336,7 +336,7 @@ public sealed partial class MainViewModel : ObservableObject
         var success = await _updateService.DownloadAndApplyUpdateAsync(_pendingUpdate);
         if (!success)
         {
-            UpdateStatus = "❌ Не удалось установить обновление";
+            UpdateStatus = "Не удалось установить обновление";
         }
     }
 
@@ -761,9 +761,9 @@ public sealed partial class MainViewModel : ObservableObject
 
             var carName = root["carName"]?.GetValue<string>();
             if (!string.IsNullOrEmpty(carName))
-                sections.Add(new SetupSection { Title = carName, Accent = SolidColorBrush.Parse("#FFC94A"), Items = { new() { Key = "Модель в сетапе", Value = carName } } });
+                sections.Add(new SetupSection { Title = carName, Accent = new SolidColorBrush(Palette.Warn), Items = { new() { Key = "Модель в сетапе", Value = carName } } });
 
-            AppendSection(sections, strategy, "Стратегия", "#2EBD93", new (string, string?)[]
+            AppendSection(sections, strategy, "Стратегия", Palette.Good, new (string, string?)[]
             {
                 ("Топливо в руки, л", GetValue(strategy, "fuel")),
                 ("Расход, л/круг", GetValue(strategy, "fuelPerLap")),
@@ -772,13 +772,13 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Колодки П / З", Join2(GetValue(strategy, "frontBrakePadCompound"), GetValue(strategy, "rearBrakePadCompound"))),
             });
 
-            AppendSection(sections, tyres, "Шины", "#4FC3F7", new (string, string?)[]
+            AppendSection(sections, tyres, "Шины", Palette.Info, new (string, string?)[]
             {
                 ("Состав", GetValue(tyres, "tyreCompound")),
                 ("Давление ПЛ ПП ЗЛ ЗП", GetArray(tyres, "tyrePressure")),
             });
 
-            AppendSection(sections, alignment, "Развал / схождение", "#BA68C8", new (string, string?)[]
+            AppendSection(sections, alignment, "Развал / схождение", Palette.Best, new (string, string?)[]
             {
                 ("Camber", GetArray(alignment, "camber")),
                 ("Статический развал", GetArray(alignment, "staticCamber")),
@@ -788,7 +788,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Рулевое соотношение", GetValue(alignment, "steerRatio")),
             });
 
-            AppendSection(sections, electronics, "Электроника", "#FFB74D", new (string, string?)[]
+            AppendSection(sections, electronics, "Электроника", Palette.Warn, new (string, string?)[]
             {
                 ("TC1 / TC2", Join2(GetValue(electronics, "tC1"), GetValue(electronics, "tC2"))),
                 ("ABS", GetValue(electronics, "abs")),
@@ -796,7 +796,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Смесь топлива", GetValue(electronics, "fuelMix")),
             });
 
-            AppendSection(sections, mech, "Мех. баланс", "#F06292", new (string, string?)[]
+            AppendSection(sections, mech, "Мех. баланс", Palette.Text3, new (string, string?)[]
             {
                 ("Стабилизатор П / З", Join2(GetValue(mech, "aRBFront"), GetValue(mech, "aRBRear"))),
                 ("Жёсткость пружин", GetArray(mech, "wheelRate")),
@@ -807,7 +807,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Тормозной баланс", GetValue(mech, "brakeBias")),
             });
 
-            AppendSection(sections, dampers, "Амортизаторы", "#9575CD", new (string, string?)[]
+            AppendSection(sections, dampers, "Амортизаторы", Palette.Info, new (string, string?)[]
             {
                 ("Сжатие медленно", GetArray(dampers, "bumpSlow")),
                 ("Сжатие быстро", GetArray(dampers, "bumpFast")),
@@ -815,7 +815,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Отбой быстро", GetArray(dampers, "reboundFast")),
             });
 
-            AppendSection(sections, aero, "Аэробаланс", "#4DB6AC", new (string, string?)[]
+            AppendSection(sections, aero, "Аэробаланс", Palette.Good, new (string, string?)[]
             {
                 ("Дорожный просвет", GetArray(aero, "rideHeight")),
                 ("Длина тяг", GetArray(aero, "rodLength")),
@@ -824,7 +824,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ("Тормозные каналы П / З", GetArray(aero, "brakeDuct")),
             });
 
-            AppendSection(sections, drivetrain, "Дифференциал", "#A1887F", new (string, string?)[]
+            AppendSection(sections, drivetrain, "Дифференциал", Palette.Best, new (string, string?)[]
             {
                 ("Преднатяг", GetValue(drivetrain, "preload")),
             });
@@ -833,14 +833,14 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception)
         {
-            return new List<SetupSection> { new() { Title = "Ошибка", Accent = SolidColorBrush.Parse("#E53935"), Items = { new() { Key = "JSON", Value = "Не удалось разобрать сетап" } } } };
+            return new List<SetupSection> { new() { Title = "Ошибка", Accent = new SolidColorBrush(Palette.Danger), Items = { new() { Key = "JSON", Value = "Не удалось разобрать сетап" } } } };
         }
     }
 
-    private static void AppendSection(List<SetupSection> sections, JsonObject? src, string title, string accent, (string Key, string? Value)[] items)
+    private static void AppendSection(List<SetupSection> sections, JsonObject? src, string title, Color accent, (string Key, string? Value)[] items)
     {
         if (src == null) return;
-        var section = new SetupSection { Title = title, Accent = SolidColorBrush.Parse(accent) };
+        var section = new SetupSection { Title = title, Accent = new SolidColorBrush(accent) };
         foreach (var (key, value) in items)
             if (value != null)
                 section.Items.Add(new SetupValue { Key = key, Value = value });
@@ -960,7 +960,7 @@ public sealed partial class MainViewModel : ObservableObject
             SteerRightPercent = pct > 0 ? pct : 0;
 
             TelemetryRateText = $"{Telemetry.Rate():F0} Гц";
-            TelemetryStatus = "● Запись идёт";
+            TelemetryStatus = "Запись идёт";
         }
         else
         {

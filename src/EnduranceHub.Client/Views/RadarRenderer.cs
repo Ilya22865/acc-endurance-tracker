@@ -77,8 +77,8 @@ public static class RadarRenderer
                 {
                     Width = carW,
                     Height = carH,
-                    RadiusX = 4,
-                    RadiusY = 4,
+                    RadiusX = 2,
+                    RadiusY = 2,
                     Fill = new SolidColorBrush(fill),
                     Stroke = new SolidColorBrush(stroke),
                     StrokeThickness = 1.5,
@@ -121,16 +121,16 @@ public static class RadarRenderer
             if (frame.SpotterRight) AddSpotter(canvas, cx + carW / 2 + 12, cy, carH, spotterPen);
         }
 
-        // наша машина — поверх всего
+        // наша машина — поверх всего: белый кузов с оранжевым кантом
         var me = new Rectangle
         {
             Width = carW,
             Height = carH,
-            RadiusX = 5,
-            RadiusY = 5,
+            RadiusX = 2,
+            RadiusY = 2,
             Fill = new SolidColorBrush(Palette.Own),
-            Stroke = new SolidColorBrush(Palette.Text),
-            StrokeThickness = 1.5,
+            Stroke = new SolidColorBrush(Palette.Accent),
+            StrokeThickness = 2,
         };
         Canvas.SetLeft(me, cx - carW / 2);
         Canvas.SetTop(me, cy - carH / 2);
@@ -139,7 +139,7 @@ public static class RadarRenderer
         // «нос» машины
         var nose = new Polygon
         {
-            Fill = new SolidColorBrush(Color.Parse("#1B0E09")),
+            Fill = new SolidColorBrush(Palette.OnOwn),
             Points = new Points
             {
                 new Point(cx, cy - carH / 2 + 5),
@@ -158,7 +158,7 @@ public static class RadarRenderer
                 TextAlignment = TextAlignment.Center,
                 FontSize = 13,
                 FontWeight = FontWeight.Bold,
-                Foreground = new SolidColorBrush(Color.Parse("#1B0E09")),
+                Foreground = new SolidColorBrush(Palette.OnOwn),
             };
             Canvas.SetLeft(ownNum, cx - 22);
             Canvas.SetTop(ownNum, cy - 3);

@@ -44,12 +44,12 @@ public sealed class ManualUpdateService
     {
         try
         {
-            OnStatusChanged?.Invoke("🔍 Проверка обновлений на GitHub...");
+            OnStatusChanged?.Invoke("Проверка обновлений на GitHub...");
             _logger.LogInformation("Checking for updates");
 
             if (!IsVelopackInstalled)
             {
-                OnStatusChanged?.Invoke("⚠️ Автообновления доступны только для установленной версии");
+                OnStatusChanged?.Invoke("Автообновления доступны только для установленной версии");
                 return new UpdateCheckResult
                 {
                     CurrentVersion = CurrentVersion,
@@ -63,7 +63,7 @@ public sealed class ManualUpdateService
 
             if (updateInfo == null)
             {
-                OnStatusChanged?.Invoke($"✅ У вас последняя версия ({CurrentVersion})");
+                OnStatusChanged?.Invoke($"У вас последняя версия ({CurrentVersion})");
                 return new UpdateCheckResult
                 {
                     CurrentVersion = CurrentVersion,
@@ -73,7 +73,7 @@ public sealed class ManualUpdateService
                 };
             }
 
-            OnStatusChanged?.Invoke($"✅ Найдено обновление: {updateInfo.TargetFullRelease.Version}");
+            OnStatusChanged?.Invoke($"Найдено обновление: {updateInfo.TargetFullRelease.Version}");
             return new UpdateCheckResult
             {
                 CurrentVersion = CurrentVersion,
@@ -85,7 +85,7 @@ public sealed class ManualUpdateService
         }
         catch (Exception ex)
         {
-            OnStatusChanged?.Invoke($"❌ Ошибка проверки: {ex.Message}");
+            OnStatusChanged?.Invoke($"Ошибка проверки: {ex.Message}");
             _logger.LogError(ex, "Failed to check for updates");
             return new UpdateCheckResult
             {
@@ -100,13 +100,13 @@ public sealed class ManualUpdateService
     {
         if (updateInfo is not Velopack.UpdateInfo veloInfo)
         {
-            OnStatusChanged?.Invoke("❌ Нет информации об обновлении");
+            OnStatusChanged?.Invoke("Нет информации об обновлении");
             return false;
         }
 
         try
         {
-            OnStatusChanged?.Invoke("⬇️ Скачивание обновления...");
+            OnStatusChanged?.Invoke("Скачивание обновления...");
             _logger.LogInformation("Downloading update");
 
             var manager = new UpdateManager(new GithubSource(DefaultRepository, null, false));
@@ -116,10 +116,10 @@ public sealed class ManualUpdateService
             {
                 var percentage = (int)progress;
                 OnProgressChanged?.Invoke(percentage);
-                OnStatusChanged?.Invoke($"⬇️ Скачивание: {percentage}%");
+                OnStatusChanged?.Invoke($"Скачивание: {percentage}%");
             });
 
-            OnStatusChanged?.Invoke("✅ Обновление скачано. Применение...");
+            OnStatusChanged?.Invoke("Обновление скачано. Применение...");
             _logger.LogInformation("Update downloaded, applying");
 
             // Применить и перезапустить
@@ -129,7 +129,7 @@ public sealed class ManualUpdateService
         }
         catch (Exception ex)
         {
-            OnStatusChanged?.Invoke($"❌ Ошибка установки: {ex.Message}");
+            OnStatusChanged?.Invoke($"Ошибка установки: {ex.Message}");
             _logger.LogError(ex, "Failed to download/apply update");
             return false;
         }

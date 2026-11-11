@@ -37,7 +37,7 @@ public sealed class EmbeddedServerService : IDisposable
         {
             if (!File.Exists(serverExePath))
             {
-                AddLog($"❌ Файл сервера не найден: {serverExePath}");
+                AddLog($"Файл сервера не найден: {serverExePath}");
                 return false;
             }
 
@@ -46,7 +46,7 @@ public sealed class EmbeddedServerService : IDisposable
             // иначе новый сервер упадёт с "address already in use".
             await StopStaleServerProcessesAsync();
 
-            AddLog($"🚀 Запуск сервера: {serverExePath}");
+            AddLog($"Запуск сервера: {serverExePath}");
 
             var startInfo = new ProcessStartInfo
             {
@@ -79,7 +79,7 @@ public sealed class EmbeddedServerService : IDisposable
             {
                 if (string.IsNullOrEmpty(e.Data)) return;
                 ChildProcessLog.Write("server-console.log", "[stderr] " + e.Data);
-                AddLog($"⚠️ {e.Data}");
+                AddLog($"{e.Data}");
             };
 
             process.Exited += (sender, e) =>
@@ -87,7 +87,7 @@ public sealed class EmbeddedServerService : IDisposable
                 var exitCode = TryGetExitCode(process);
                 _isRunning = false;
                 ChildProcessLog.Write("server-console.log", $"=== Server exited with code {exitCode} ===");
-                AddLog($"🛑 Сервер остановлен (код {exitCode})");
+                AddLog($"Сервер остановлен (код {exitCode})");
                 OnStateChanged?.Invoke(false);
             };
 
@@ -95,7 +95,7 @@ public sealed class EmbeddedServerService : IDisposable
 
             if (!_serverProcess.Start())
             {
-                AddLog("❌ Не удалось запустить процесс сервера");
+                AddLog("Не удалось запустить процесс сервера");
                 return false;
             }
 
@@ -103,7 +103,7 @@ public sealed class EmbeddedServerService : IDisposable
             _serverProcess.BeginErrorReadLine();
 
             _isRunning = true;
-            AddLog("✅ Сервер запущен");
+            AddLog("Сервер запущен");
             OnStateChanged?.Invoke(true);
 
             // Даём серверу время на старт и проверяем, что он не упал сразу.
@@ -114,7 +114,7 @@ public sealed class EmbeddedServerService : IDisposable
             if (_serverProcess != null && _serverProcess.HasExited)
             {
                 _isRunning = false;
-                AddLog("❌ Сервер завершился сразу после запуска.");
+                AddLog("Сервер завершился сразу после запуска.");
                 AddLog("   Проверьте, не занят ли порт 5261 другой программой или старым экземпляром сервера.");
                 return false;
             }
@@ -123,7 +123,7 @@ public sealed class EmbeddedServerService : IDisposable
         }
         catch (Exception ex)
         {
-            AddLog($"❌ Ошибка запуска сервера: {ex.Message}");
+            AddLog($"Ошибка запуска сервера: {ex.Message}");
             ChildProcessLog.Write("server-console.log", "=== Server start failed: " + ex + " ===");
             _logger.LogError(ex, "Failed to start embedded server");
             return false;
@@ -145,7 +145,7 @@ public sealed class EmbeddedServerService : IDisposable
 
         try
         {
-            AddLog("⏹️ Остановка сервера...");
+            AddLog("Остановка сервера...");
 
             if (!_serverProcess.HasExited)
             {
@@ -155,17 +155,17 @@ public sealed class EmbeddedServerService : IDisposable
             }
 
             _isRunning = false;
-            AddLog("🛑 Сервер остановлен");
+            AddLog("Сервер остановлен");
             OnStateChanged?.Invoke(false);
         }
         catch (OperationCanceledException)
         {
-            AddLog("⚠️ Сервер не завершился за 5 секунд");
+            AddLog("Сервер не завершился за 5 секунд");
             _logger.LogWarning("Timed out waiting for embedded server process to exit");
         }
         catch (Exception ex)
         {
-            AddLog($"⚠️ Ошибка при остановке: {ex.Message}");
+            AddLog($"Ошибка при остановке: {ex.Message}");
             _logger.LogError(ex, "Error stopping embedded server");
         }
         finally
@@ -184,7 +184,7 @@ public sealed class EmbeddedServerService : IDisposable
         }
         catch (Exception ex)
         {
-            AddLog($"⚠️ Не удалось проверить старые процессы сервера: {ex.Message}");
+            AddLog($"Не удалось проверить старые процессы сервера: {ex.Message}");
             _logger.LogWarning(ex, "Failed to enumerate stale server processes");
             return;
         }
@@ -196,7 +196,7 @@ public sealed class EmbeddedServerService : IDisposable
                 if (process.HasExited || (_serverProcess != null && process.Id == _serverProcess.Id))
                     continue;
 
-                AddLog($"⚠️ Найден старый процесс сервера (PID {process.Id}), останавливаю...");
+                AddLog($"Найден старый процесс сервера (PID {process.Id}), останавливаю...");
                 process.Kill(entireProcessTree: true);
 
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -204,7 +204,7 @@ public sealed class EmbeddedServerService : IDisposable
             }
             catch (Exception ex)
             {
-                AddLog($"⚠️ Не удалось остановить старый сервер (PID {process.Id}): {ex.Message}");
+                AddLog($"Не удалось остановить старый сервер (PID {process.Id}): {ex.Message}");
                 _logger.LogWarning(ex, "Failed to stop stale server process {Pid}", process.Id);
             }
             finally

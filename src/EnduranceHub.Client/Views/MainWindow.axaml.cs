@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using EnduranceHub.Client.ViewModels;
 
 namespace EnduranceHub.Client.Views;
@@ -25,7 +26,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Opened += (_, _) => (DataContext as MainViewModel)?.ConnectCommand.Execute(null);
+        Opened += (_, _) =>
+        {
+            ApplyWindowsChrome();
+            (DataContext as MainViewModel)?.ConnectCommand.Execute(null);
+        };
 
         _mapCanvas = this.FindControl<Canvas>("MapCanvas");
         _radarCanvas = this.FindControl<Canvas>("RadarCanvas");
@@ -149,6 +154,39 @@ public partial class MainWindow : Window
         GapTrendRenderer.Render(_gapTrendCanvas, vm.GetGapHistory(row.CarIndex), vm.HistoryNow);
     }
 
+    /// <summary>
+    /// Красит системный заголовок окна в цвета приложения: иначе Windows рисует его
+    /// акцентом системы (у пользователя он может быть ярко-фиолетовым) и строгая
+    /// графитовая палитра разваливается. На Windows 10 вызов просто ничего не делает.
+    /// </summary>
+    private void ApplyWindowsChrome()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero) return;
+
+        try
+        {
+            // COLORREF = 0x00BBGGRR
+            int caption = 0x00191411; // #111419 — SurfaceBrush
+            int border = 0x00302823;  // #232830 — LineBrush
+            int text = 0x00F5F2F0;    // #F0F2F5 — TextBrush
+            int corner = 2;           // DWMWCP_ROUND
+
+            DwmSetWindowAttribute(handle, 34, ref border, sizeof(int));
+            DwmSetWindowAttribute(handle, 35, ref caption, sizeof(int));
+            DwmSetWindowAttribute(handle, 36, ref text, sizeof(int));
+            DwmSetWindowAttribute(handle, 33, ref corner, sizeof(int));
+        }
+        catch
+        {
+            // DWM есть не во всех сборках Windows — оформление не критично для работы.
+        }
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
     private void RenderMap()
     {
         if (_mapCanvas == null || DataContext is not MainViewModel vm) return;
@@ -229,7 +267,7 @@ public partial class MainWindow : Window
                 Width = r * 2,
                 Height = r * 2,
                 Fill = new SolidColorBrush(isOur ? Palette.Own : Palette.Surface3),
-                Stroke = new SolidColorBrush(isOur ? Palette.Text : Palette.Text3),
+                Stroke = new SolidColorBrush(isOur ? Palette.Accent : Palette.Text3),
                 StrokeThickness = isOur ? 2 : 1,
             };
             Canvas.SetLeft(car, p.X - r);
@@ -241,7 +279,7 @@ public partial class MainWindow : Window
                 Text = dot.RaceNumber.ToString(),
                 FontSize = isOur ? 11 : 9,
                 FontWeight = FontWeight.Bold,
-                Foreground = new SolidColorBrush(isOur ? Palette.Bg : Palette.Text),
+                Foreground = new SolidColorBrush(isOur ? Palette.OnOwn : Palette.Text),
                 Width = r * 2 + 8,
                 TextAlignment = TextAlignment.Center,
             };
