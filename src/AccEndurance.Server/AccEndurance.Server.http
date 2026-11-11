@@ -1,6 +1,0 @@
-@AccEndurance.Server_HostAddress = http://localhost:5261
-
-GET {{AccEndurance.Server_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

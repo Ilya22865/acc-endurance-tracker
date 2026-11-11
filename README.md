@@ -1,4 +1,4 @@
-# AccEndurance Tracker
+# EnduranceHub Tracker
 
 Система мониторинга и анализа эндьюранс-гонок для Assetto Corsa Competizione в реальном времени.
 
@@ -17,18 +17,18 @@
 
 Проект состоит из нескольких компонентов:
 
-### AccEndurance.Server
+### EnduranceHub.Server
 ASP.NET Core сервер с REST API и SignalR хабом. Подключается к ACC Broadcasting API, обрабатывает телеметрию и хранит данные в PostgreSQL.
 
 **Порт по умолчанию:** `5261`
 
-### AccEndurance.Client
+### EnduranceHub.Client
 Десктопное приложение (Avalonia UI) для визуализации данных. Подключается к серверу через SignalR для получения обновлений в реальном времени.
 
-### AccEndurance.Broadcaster
+### EnduranceHub.Broadcaster
 Консольная утилита для отладки и мониторинга ACC Broadcasting протокола. Показывает все события от игры в терминале.
 
-### AccEndurance.Agent
+### EnduranceHub.Agent
 Агент для чтения телеметрии с устройств ввода (руль, педали) из Shared Memory ACC и отправки на сервер.
 
 ## 🚀 Быстрый старт (новый способ!)
@@ -38,9 +38,9 @@ ASP.NET Core сервер с REST API и SignalR хабом. Подключае�
 ### 1. Скачайте и установите
 
 Скачайте последний релиз из [Releases](https://github.com/Ilya22865/acc-endurance-tracker/releases):
-- **Windows:** `AccEndurance-win-win-Setup.exe`
-- **Linux:** `AccEndurance-linux.AppImage`
-- **macOS:** `AccEndurance-osx-osx-Setup.pkg`
+- **Windows:** `EnduranceHub-win-win-Setup.exe`
+- **Linux:** `EnduranceHub-linux.AppImage`
+- **macOS:** `EnduranceHub-osx-osx-Setup.pkg`
 
 ### 2. Настройте базу данных
 
@@ -50,7 +50,7 @@ ASP.NET Core сервер с REST API и SignalR хабом. Подключае�
 docker-compose up -d
 ```
 
-Или установите PostgreSQL локально и создайте базу `acc_endurance`.
+Или установите PostgreSQL локально и создайте базу `endurancehub`.
 
 ### 3. Настройте сервер
 
@@ -58,7 +58,7 @@ docker-compose up -d
 
 Обычно находится в:
 ```
-%LOCALAPPDATA%\AccEndurance\server.appsettings.json
+%LOCALAPPDATA%\EnduranceHub\server.appsettings.json
 ```
 
 Файл создаётся автоматически при первом запуске сервера (из настроек по умолчанию). Он хранится вне папки установки, поэтому не пропадает при обновлениях.
@@ -70,12 +70,12 @@ Server и Agent устанавливаются вместе с клиентом,
 ```json
 {
   "ConnectionStrings": {
-    "AccEndurance": "Host=localhost;Port=5432;Database=acc_endurance;Username=postgres;Password=postgres"
+    "EnduranceHub": "Host=localhost;Port=5432;Database=endurancehub;Username=postgres;Password=postgres"
   },
   "Acc": {
     "Ip": "192.168.1.100",              // IP машины с запущенным ACC
     "Port": 9000,                        // Broadcasting порт ACC (по умолчанию 9000)
-    "DisplayName": "AccEnduranceServer",
+    "DisplayName": "EnduranceHubServer",
     "Password": "",                      // Пароль из broadcasting.json ACC (если установлен)
     "CommandPassword": "",
     "UpdateIntervalMs": 100,
@@ -104,14 +104,14 @@ Server и Agent устанавливаются вместе с клиентом,
 
 #### Если вы запускаете ACC (хост сервера):
 
-1. Запустите **AccEndurance.exe**
+1. Запустите **EnduranceHub.exe**
 2. Перейдите на вкладку **"Сервер"** (фиолетовая иконка "SV")
 3. Нажмите **"▶ Запустить"** — сервер запустится, логи появятся ниже
 4. Перейдите на вкладку **"Позиции"** и используйте приложение
 
 #### Если вы подключаетесь к чужому серверу:
 
-1. Запустите **AccEndurance.exe**
+1. Запустите **EnduranceHub.exe**
 2. Укажите URL сервера (например, `http://10.0.0.5:5261` через Radmin VPN)
 3. Нажмите **"Подключить"**
 4. Готово! Сервер НЕ запускается на вашей машине
@@ -175,7 +175,7 @@ ip addr | grep radmin
 ### 1. Тестирование Broadcasting подключения
 
 ```bash
-cd src/AccEndurance.Broadcaster
+cd src/EnduranceHub.Broadcaster
 dotnet run -- 192.168.1.100 9000
 
 # Для локального тестирования с мок-данными:
@@ -187,7 +187,7 @@ dotnet run -- --mock
 ### 2. Тестирование телеметрии Agent
 
 ```bash
-cd src/AccEndurance.Agent
+cd src/EnduranceHub.Agent
 # С фейковыми данными (без запущенного ACC)
 dotnet run -- --server http://localhost:5261 --fake
 
@@ -215,9 +215,9 @@ dotnet run -- --server http://localhost:5261
 2. **GitHub Actions** соберёт и опубликует релиз с установочными файлами
 
 3. **Установить приложение** из релиза:
-   - Windows: `AccEndurance-win-win-Setup.exe`
-   - Linux: `AccEndurance-linux.AppImage`
-   - macOS: `AccEndurance-osx-osx-Setup.pkg`
+   - Windows: `EnduranceHub-win-win-Setup.exe`
+   - Linux: `EnduranceHub-linux.AppImage`
+   - macOS: `EnduranceHub-osx-osx-Setup.pkg`
 
 4. **Создать новый релиз** с увеличенной версией (например, `v0.1.1`)
 
@@ -228,14 +228,14 @@ dotnet run -- --server http://localhost:5261
 ## 📁 Структура проекта
 
 ```
-AccEndurance/
+EnduranceHub/
 ├── src/
-│   ├── AccEndurance.Client/       # Десктопный клиент (Avalonia)
-│   ├── AccEndurance.Server/       # ASP.NET сервер + SignalR
-│   ├── AccEndurance.Agent/        # Агент телеметрии педалей/руля
-│   ├── AccEndurance.Broadcaster/  # Консольный монитор Broadcasting
-│   ├── AccEndurance.Domain/       # Доменные сущности + EF миграции
-│   └── AccEndurance.Shared/       # Общие DTO и Broadcasting протокол
+│   ├── EnduranceHub.Client/       # Десктопный клиент (Avalonia)
+│   ├── EnduranceHub.Server/       # ASP.NET сервер + SignalR
+│   ├── EnduranceHub.Agent/        # Агент телеметрии педалей/руля
+│   ├── EnduranceHub.Broadcaster/  # Консольный монитор Broadcasting
+│   ├── EnduranceHub.Domain/       # Доменные сущности + EF миграции
+│   └── EnduranceHub.Shared/       # Общие DTO и Broadcasting протокол
 ├── .github/workflows/             # CI/CD для автообновлений
 ├── docker-compose.yml             # PostgreSQL для разработки
 └── RELEASING.md                   # Инструкции по релизам
@@ -266,24 +266,24 @@ AccEndurance/
 ### Логи сервера
 
 Логи сохраняются в:
-- Windows: `%LOCALAPPDATA%\AccEndurance\logs\server.log`
-- Linux/macOS: `~/.local/share/AccEndurance/logs/server.log`
+- Windows: `%LOCALAPPDATA%\EnduranceHub\logs\server.log`
+- Linux/macOS: `~/.local/share/EnduranceHub/logs/server.log`
 
 ## 🔧 Разработка
 
 ```bash
 # Билд всего solution
-dotnet build AccEndurance.slnx
+dotnet build EnduranceHub.slnx
 
 # Запуск тестов (если есть)
 dotnet test
 
 # Создание миграции EF
-cd src/AccEndurance.Domain
-dotnet ef migrations add MigrationName --startup-project ../AccEndurance.Server
+cd src/EnduranceHub.Domain
+dotnet ef migrations add MigrationName --startup-project ../EnduranceHub.Server
 
 # Применение миграций
-cd src/AccEndurance.Server
+cd src/EnduranceHub.Server
 dotnet ef database update
 ```
 

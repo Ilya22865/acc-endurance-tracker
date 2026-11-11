@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EnduranceHub.Agent/EnduranceHub.Agent.csproj" />
+    <Project Path="src/EnduranceHub.Broadcaster/EnduranceHub.Broadcaster.csproj" />
+    <Project Path="src/EnduranceHub.Client/EnduranceHub.Client.csproj" />
+    <Project Path="src/EnduranceHub.Domain/EnduranceHub.Domain.csproj" />
+    <Project Path="src/EnduranceHub.Server/EnduranceHub.Server.csproj" />
+    <Project Path="src/EnduranceHub.Shared/EnduranceHub.Shared.csproj" />
+  </Folder>
+</Solution>

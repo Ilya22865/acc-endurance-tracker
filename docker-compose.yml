@@ -1,16 +1,16 @@
 services:
   postgres:
     image: postgres:16
-    container_name: acc-endurance-db
+    container_name: endurancehub-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: acc_endurance
+      POSTGRES_DB: endurancehub
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
-      - acc-db-data:/var/lib/postgresql/data
+      - endurancehub-db-data:/var/lib/postgresql/data
 
 volumes:
-  acc-db-data:
+  endurancehub-db-data:

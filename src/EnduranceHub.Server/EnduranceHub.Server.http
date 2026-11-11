@@ -1,0 +1,6 @@
+@EnduranceHub.Server_HostAddress = http://localhost:5261
+
+GET {{EnduranceHub.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

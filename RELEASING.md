@@ -1,9 +1,9 @@
-# AccEndurance releases
+# EnduranceHub releases
 
 ## GitHub repository setup
 
 1. Push this project to a **public** GitHub repository. Public is recommended because the updater uses anonymous GitHub Releases access and no token is embedded in the app.
-2. In `src/AccEndurance.Client/update-source.json`, replace `OWNER/AccEndurance` with the real repository URL for local builds. GitHub Actions writes the correct URL automatically for release builds.
+2. In `src/EnduranceHub.Client/update-source.json`, replace `OWNER/EnduranceHub` with the real repository URL for local builds. GitHub Actions writes the correct URL automatically for release builds.
 3. Ensure GitHub Actions is enabled and the workflow permission `Contents: Read and write` is allowed (the workflow also requests `contents: write`).
 
 ## Publish a release
@@ -23,11 +23,11 @@ For the next release, increase the version and push the next tag (for example `v
 
 Download the matching first-install artifact from the GitHub Release:
 
-- Windows: `AccEndurance-win-Setup.exe`
-- macOS: `AccEndurance-osx.pkg`
-- Linux: `AccEndurance-linux.AppImage` (mark it executable if your file manager does not do so automatically)
+- Windows: `EnduranceHub-win-win-Setup.exe`
+- macOS: `EnduranceHub-osx.pkg`
+- Linux: `EnduranceHub-linux.AppImage` (mark it executable if your file manager does not do so automatically)
 
-On Windows the installer is a one-click per-user installer. It installs the whole application into the dedicated folder `%LOCALAPPDATA%\AccEndurance-win\current` and bundles the desktop client together with `Server\AccEndurance.Server.exe` and `Agent\AccEndurance.Agent.exe`. The client always resolves those two executables from that installation folder, so users never have to choose paths manually. To install somewhere else, run `AccEndurance-win-Setup.exe --installto "D:\Apps\AccEndurance"`; the fixed relative paths keep working because they are resolved from the client's own directory.
+On Windows the installer is a one-click per-user installer. It installs the whole application into the dedicated folder `%LOCALAPPDATA%\EnduranceHub-win\current` and bundles the desktop client together with `Server\EnduranceHub.Server.exe` and `Agent\EnduranceHub.Agent.exe`. The client always resolves those two executables from that installation folder, so users never have to choose paths manually. To install somewhere else, run `EnduranceHub-win-win-Setup.exe --installto "D:\Apps\EnduranceHub"`; the fixed relative paths keep working because they are resolved from the client's own directory.
 
 Linux does not have a traditional setup wizard in Velopack; its AppImage is self-updating. macOS package installation and subsequent updates require code signing and notarization for a smooth Gatekeeper experience. Windows signing is strongly recommended to reduce SmartScreen warnings.
 

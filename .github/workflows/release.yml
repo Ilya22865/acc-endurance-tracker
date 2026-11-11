@@ -1,4 +1,4 @@
-name: Build and publish AccEndurance
+name: Build and publish EnduranceHub
 
 on:
   push:
@@ -18,18 +18,21 @@ jobs:
           - os: windows-latest
             rid: win-x64
             channel: win
-            main_exe: AccEndurance.Client.exe
+            main_exe: EnduranceHub.Client.exe
             bundle_services: true
+            icon_args: "--icon src/EnduranceHub.Client/Assets/EndHub.ico"
           - os: ubuntu-latest
             rid: linux-x64
             channel: linux
-            main_exe: AccEndurance.Client
+            main_exe: EnduranceHub.Client
             bundle_services: false
+            icon_args: "--icon src/EnduranceHub.Client/Assets/EndHub.png"
           - os: macos-latest
             rid: osx-arm64
             channel: osx
-            main_exe: AccEndurance.Client
+            main_exe: EnduranceHub.Client
             bundle_services: false
+            icon_args: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -46,11 +49,11 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          printf '{\n  "GitHubRepository": "https://github.com/%s"\n}\n' "$GITHUB_REPOSITORY" > src/AccEndurance.Client/update-source.json
+          printf '{\n  "GitHubRepository": "https://github.com/%s"\n}\n' "$GITHUB_REPOSITORY" > src/EnduranceHub.Client/update-source.json
 
       - name: Publish self-contained client
         run: >-
-          dotnet publish src/AccEndurance.Client/AccEndurance.Client.csproj
+          dotnet publish src/EnduranceHub.Client/EnduranceHub.Client.csproj
           --configuration Release
           --runtime ${{ matrix.rid }}
           --self-contained true
@@ -61,14 +64,14 @@ jobs:
         if: matrix.bundle_services
         shell: bash
         run: |
-          dotnet publish src/AccEndurance.Server/AccEndurance.Server.csproj \
+          dotnet publish src/EnduranceHub.Server/EnduranceHub.Server.csproj \
             --configuration Release \
             --runtime ${{ matrix.rid }} \
             --self-contained true \
             -p:Version=${{ env.RELEASE_VERSION }} \
             --output ./publish/Server
 
-          dotnet publish src/AccEndurance.Agent/AccEndurance.Agent.csproj \
+          dotnet publish src/EnduranceHub.Agent/EnduranceHub.Agent.csproj \
             --configuration Release \
             --runtime ${{ matrix.rid }} \
             --self-contained true \
@@ -79,19 +82,20 @@ jobs:
         if: matrix.bundle_services
         shell: bash
         run: |
-          test -f ./publish/Server/AccEndurance.Server.exe
-          test -f ./publish/Agent/AccEndurance.Agent.exe
+          test -f ./publish/Server/EnduranceHub.Server.exe
+          test -f ./publish/Agent/EnduranceHub.Agent.exe
 
       - name: Create installer and update feed
         run: >-
           vpk pack
-          --packId AccEndurance-${{ matrix.channel }}
+          --packId EnduranceHub-${{ matrix.channel }}
           --packVersion ${{ env.RELEASE_VERSION }}
           --packDir ./publish
           --mainExe ${{ matrix.main_exe }}
           --runtime ${{ matrix.rid }}
           --channel ${{ matrix.channel }}
-          --packTitle AccEndurance
+          --packTitle EnduranceHub
+          ${{ matrix.icon_args }}
           --outputDir ./releases
 
       - uses: actions/upload-artifact@v4
@@ -115,6 +119,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: AccEndurance ${{ github.ref_name }}
+          name: EnduranceHub ${{ github.ref_name }}
           generate_release_notes: true
           files: release-assets/*

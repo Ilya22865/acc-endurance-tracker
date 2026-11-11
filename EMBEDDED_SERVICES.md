@@ -6,20 +6,20 @@
 
 ### Две новые вкладки:
 
-1. **🖥️ Сервер** — запуск и управление AccEndurance.Server прямо из клиента
+1. **🖥️ Сервер** — запуск и управление EnduranceHub.Server прямо из клиента
 2. **🎮 Агент** — запуск и управление Agent для телеметрии педалей/руля
 
 ## 📋 Как использовать
 
 ### Вариант 1: Вы запускаете ACC (хост сервера)
 
-1. Запустите **AccEndurance.exe** (установленный клиент)
+1. Запустите **EnduranceHub.exe** (установленный клиент)
 2. Перейдите на вкладку **"Сервер"** (фиолетовая иконка "SV")
-3. Путь к `AccEndurance.Server.exe` фиксирован — ничего указывать не нужно
+3. Путь к `EnduranceHub.Server.exe` фиксирован — ничего указывать не нужно
 4. Нажмите **"▶ Запустить"**
 5. В окне с логами увидите:
    ```
-   [12:30:45] 🚀 Запуск сервера: C:\Users\...\AppData\Local\AccEndurance-win\current\Server\AccEndurance.Server.exe
+   [12:30:45] 🚀 Запуск сервера: C:\Users\...\AppData\Local\EnduranceHub-win\current\Server\EnduranceHub.Server.exe
    [12:30:46] ✅ Сервер запущен
    [12:30:46] info: Connecting to ACC at 127.0.0.1:9000...
    [12:30:47] info: ACC connection: Connected
@@ -30,7 +30,7 @@
 
 ### Вариант 2: Подключение к чужому серверу (Radmin VPN)
 
-1. Запустите **AccEndurance.exe**
+1. Запустите **EnduranceHub.exe**
 2. На главном экране укажите URL сервера: `http://10.0.0.5:5261` (IP из Radmin VPN)
 3. Нажмите **"Подключить"**
 4. Готово! Сервер **не запускается**, вы просто смотрите данные
@@ -61,23 +61,23 @@
 Установщик Velopack кладёт клиент, Server и Agent в одну папку приложения:
 
 ```
-%LOCALAPPDATA%\AccEndurance-win\current\
-├── AccEndurance.Client.exe
+%LOCALAPPDATA%\EnduranceHub-win\current\
+├── EnduranceHub.Client.exe
 ├── Server\
-│   ├── AccEndurance.Server.exe
+│   ├── EnduranceHub.Server.exe
 │   └── appsettings.json        (настройки по умолчанию)
 └── Agent\
-    └── AccEndurance.Agent.exe
+    └── EnduranceHub.Agent.exe
 ```
 
 Клиент всегда запускает их по этим фиксированным путям:
-- `%LOCALAPPDATA%\AccEndurance-win\current\Server\AccEndurance.Server.exe`
-- `%LOCALAPPDATA%\AccEndurance-win\current\Agent\AccEndurance.Agent.exe`
+- `%LOCALAPPDATA%\EnduranceHub-win\current\Server\EnduranceHub.Server.exe`
+- `%LOCALAPPDATA%\EnduranceHub-win\current\Agent\EnduranceHub.Agent.exe`
 
 При обновлении через Velopack папка `current` заменяется целиком, поэтому Server и Agent обновляются вместе с клиентом. Пользовательские настройки сервера при этом не теряются — они хранятся отдельно:
 
 ```
-%LOCALAPPDATA%\AccEndurance\server.appsettings.json
+%LOCALAPPDATA%\EnduranceHub\server.appsettings.json
 ```
 
 Файл создаётся автоматически при первом запуске сервера.
@@ -126,18 +126,18 @@ docker-compose up -d
 
 # Терминал 2
 cd Server
-AccEndurance.Server.exe
+EnduranceHub.Server.exe
 
 # Терминал 3
 cd Agent
-AccEndurance.Agent.exe --server http://localhost:5261 --driver-index 0
+EnduranceHub.Agent.exe --server http://localhost:5261 --driver-index 0
 
 # Терминал 4
-AccEndurance.Client.exe
+EnduranceHub.Client.exe
 ```
 
 **Теперь:**
-1. Двойной клик `AccEndurance.exe`
+1. Двойной клик `EnduranceHub.exe`
 2. Вкладка "Сервер" → Запустить
 3. Вкладка "Агент" → Указать DriverIndex → Запустить
 4. Готово! 🏁
