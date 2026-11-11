@@ -21,18 +21,22 @@ jobs:
             main_exe: EnduranceHub.Client.exe
             bundle_services: true
             icon_args: "--icon src/EnduranceHub.Client/Assets/EndHub.ico"
+            # MSI даёт мастер установки с выбором области (для всех / только для меня).
+            installer_args: "--msi --instLocation Either"
           - os: ubuntu-latest
             rid: linux-x64
             channel: linux
             main_exe: EnduranceHub.Client
             bundle_services: false
             icon_args: "--icon src/EnduranceHub.Client/Assets/EndHub.png"
+            installer_args: ""
           - os: macos-latest
             rid: osx-arm64
             channel: osx
             main_exe: EnduranceHub.Client
             bundle_services: false
             icon_args: ""
+            installer_args: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -85,6 +89,32 @@ jobs:
           test -f ./publish/Server/EnduranceHub.Server.exe
           test -f ./publish/Agent/EnduranceHub.Agent.exe
 
+      - name: Configure code signing
+        if: matrix.channel == 'win'
+        shell: bash
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
+          SIGNING_SIGN_PARAMS: ${{ secrets.VPK_SIGN_PARAMS }}
+        run: |
+          # Подпись — единственное, что реально убирает «Unknown publisher» и SmartScreen.
+          # Секреты необязательны: без них релиз соберётся, но будет неподписанным.
+          if [ -n "$SIGNING_PFX_BASE64" ]; then
+            PFX="$RUNNER_TEMP/endurancehub-signing.pfx"
+            printf '%s' "$SIGNING_PFX_BASE64" | base64 --decode > "$PFX"
+            echo "::add-mask::$SIGNING_PFX_PASSWORD"
+            {
+              echo "VPK_SIGN_PARAMS=/f \"$PFX\" /p \"$SIGNING_PFX_PASSWORD\" /fd sha256 /tr http://timestamp.digicert.com /td sha256"
+            } >> "$GITHUB_ENV"
+            echo "Code signing enabled with the PFX certificate."
+          elif [ -n "$SIGNING_SIGN_PARAMS" ]; then
+            echo "::add-mask::$SIGNING_SIGN_PARAMS"
+            echo "VPK_SIGN_PARAMS=$SIGNING_SIGN_PARAMS" >> "$GITHUB_ENV"
+            echo "Code signing enabled via VPK_SIGN_PARAMS."
+          else
+            echo "::warning title=Unsigned build::No signing secrets configured. Windows will show SmartScreen 'Unknown publisher'."
+          fi
+
       - name: Create installer and update feed
         run: >-
           vpk pack
@@ -95,7 +125,9 @@ jobs:
           --runtime ${{ matrix.rid }}
           --channel ${{ matrix.channel }}
           --packTitle EnduranceHub
+          --packAuthors EnduranceHub
           ${{ matrix.icon_args }}
+          ${{ matrix.installer_args }}
           --outputDir ./releases
 
       - uses: actions/upload-artifact@v4
@@ -114,6 +146,17 @@ jobs:
         with:
           path: release-assets
           merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        working-directory: release-assets
+        run: |
+          # Контрольные суммы рядом с релизом: пользователь может сверить файл
+          # после скачивания и убедиться, что он не повреждён и не подменён.
+          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -printf '%f\n' \
+            | sort \
+            | xargs -r sha256sum > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Publish release assets
         uses: softprops/action-gh-release@v2

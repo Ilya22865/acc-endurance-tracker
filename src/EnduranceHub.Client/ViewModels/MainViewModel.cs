@@ -35,6 +35,57 @@ public sealed partial class MainViewModel : ObservableObject
         new NavItem { Title = "Агент", Icon = Geometry.Parse("M4 5 H20 V15 H4 Z M8 19h8M12 15v4") },
         new NavItem { Title = "Настройки", Icon = Geometry.Parse("M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8 M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2") },
     };
+    /// <summary>Сценарий первого запуска: коротко объясняет, что делает каждый пункт.</summary>
+    public ObservableCollection<TourStep> TourSteps { get; } = new()
+    {
+        new TourStep(
+            "Добро пожаловать в EnduranceHub",
+            "Короткий тур по интерфейсу: покажем, что делает каждая вкладка и кнопка. Тур можно пропустить и запустить снова из «Настроек»."),
+        new TourStep(
+            "Позиции",
+            "Кто где едет: отрывы, интервалы, последние и лучшие круги. Ваша машина выделена белой табличкой с номером.",
+            Target: "nav", NavIndex: 0, PageIndex: 0),
+        new TourStep(
+            "Стинты",
+            "История отрезков гонки: кто, сколько кругов проехал, сколько топлива потратил и когда была смена пилота. Здесь же сохраняются заметки по стинту.",
+            Target: "nav", NavIndex: 1, PageIndex: 1),
+        new TourStep(
+            "Телеметрия",
+            "Газ, тормоз и руль в реальном времени. Данные приходят от агента, запущенного на ПК пилота.",
+            Target: "nav", NavIndex: 2, PageIndex: 2),
+        new TourStep(
+            "Радар",
+            "Машины вокруг вас в радиусе до 60 метров. Помогает не потерять соперника в трафике и на выезде из боксов.",
+            Target: "nav", NavIndex: 3, PageIndex: 3),
+        new TourStep(
+            "Сетап",
+            "Файлы настройки из папки ACC: машина, трасса и параметры. Можно посмотреть сетап, не сворачивая игру.",
+            Target: "nav", NavIndex: 4, PageIndex: 4),
+        new TourStep(
+            "Карта трассы",
+            "Контур трассы и положение всех машин. Контур записывается автоматически после чистого круга без пит-стопа.",
+            Target: "nav", NavIndex: 5, PageIndex: 5),
+        new TourStep(
+            "Сервер",
+            "Локальный сервер EnduranceHub и его лог. Нажмите «Запустить», чтобы поднять сервер на этом ПК.",
+            Target: "nav", NavIndex: 6, PageIndex: 6),
+        new TourStep(
+            "Агент",
+            "Агент читает телеметрию из ACC. Запускайте его на ПК того, кто сейчас за рулём: при смене пилота стинт разделится автоматически.",
+            Target: "nav", NavIndex: 7, PageIndex: 7),
+        new TourStep(
+            "Настройки",
+            "Номер вашей машины, зеркало радара, экспорт данных и обновления. Здесь же можно пройти этот тур заново.",
+            Target: "nav", NavIndex: 8, PageIndex: 8),
+        new TourStep(
+            "Подключение к серверу",
+            "Адрес сервера и кнопка «Подключить». Для локального запуска оставьте localhost:5261 — клиент подключится к серверу на этом же ПК.",
+            Target: "connect", PageIndex: 0),
+        new TourStep(
+            "Готово",
+            "Тур закончен. Если что-то забыли — откройте «Настройки» и нажмите «Пройти обучение заново»."),
+    };
+
     public ObservableCollection<string> SetupCars { get; } = new();
     public ObservableCollection<string> SetupTracks { get; } = new();
     public ObservableCollection<SetupFileRow> SetupFiles { get; } = new();
@@ -126,6 +177,28 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private int _updateProgress;
     private object? _pendingUpdate;
 
+    // Обучение при первом запуске
+    [ObservableProperty] private bool _isTourVisible;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentTourStep))]
+    [NotifyPropertyChangedFor(nameof(TourCounterText))]
+    [NotifyPropertyChangedFor(nameof(IsFirstTourStep))]
+    [NotifyPropertyChangedFor(nameof(IsLastTourStep))]
+    [NotifyPropertyChangedFor(nameof(TourNextText))]
+    private int _tourStepIndex;
+    private bool _hasCompletedTour;
+    private int _pageBeforeTour;
+
+    public event Action? TourStepChanged;
+
+    public TourStep? CurrentTourStep =>
+        TourStepIndex >= 0 && TourStepIndex < TourSteps.Count ? TourSteps[TourStepIndex] : null;
+
+    public string TourCounterText => $"{Math.Min(TourStepIndex + 1, TourSteps.Count)} / {TourSteps.Count}";
+    public bool IsFirstTourStep => TourStepIndex <= 0;
+    public bool IsLastTourStep => TourStepIndex >= TourSteps.Count - 1;
+    public string TourNextText => IsLastTourStep ? "Готово" : "Далее";
+
     // Settings
     [ObservableProperty] private int _ourCarNumber;
 
@@ -156,6 +229,10 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand ClearAutoSaveCommand { get; }
     public ICommand ExportToJsonCommand { get; }
     public ICommand ExportToCsvCommand { get; }
+    public ICommand StartTourCommand { get; }
+    public ICommand NextTourStepCommand { get; }
+    public ICommand PreviousTourStepCommand { get; }
+    public ICommand SkipTourCommand { get; }
 
     public MainViewModel(string baseUrl)
     {
@@ -176,6 +253,10 @@ public sealed partial class MainViewModel : ObservableObject
         ClearAutoSaveCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(ClearAutoSave);
         ExportToJsonCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToJsonAsync);
         ExportToCsvCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ExportToCsvAsync);
+        StartTourCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(StartTour);
+        NextTourStepCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(NextTourStep);
+        PreviousTourStepCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(PreviousTourStep);
+        SkipTourCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(FinishTour);
         ClearTelemetryCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(() => Telemetry.Clear());
         RefreshTeamDriversCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadTeamDriversAsync);
 
@@ -255,6 +336,7 @@ public sealed partial class MainViewModel : ObservableObject
             RadarMirror = settings.RadarMirror;
             RadarRangeIndex = Math.Clamp(settings.RadarRangeIndex, 0, 2);
             AgentUseFakeData = settings.AgentUseFakeData;
+            _hasCompletedTour = settings.HasCompletedTour;
             _settingsLoaded = true;
 
             // Попытка восстановить последнюю сессию (только если подключение не удалось)
@@ -1133,6 +1215,63 @@ public sealed partial class MainViewModel : ObservableObject
     private static string FormatMs(int? ms) => ms is int v ? TimeSpan.FromMilliseconds(v).ToString(@"m\:ss\.fff") : "—";
     private static string FormatDuration(DateTime end, DateTime start) => (end - start).ToString(@"h\:mm\:ss");
 
+    /// <summary>Показывает тур при первом запуске; флаг хранится в settings.json.</summary>
+    public void TryStartTour()
+    {
+        if (_hasCompletedTour) return;
+        StartTour();
+    }
+
+    private void StartTour()
+    {
+        if (TourSteps.Count == 0) return;
+
+        _pageBeforeTour = SelectedPageIndex;
+        TourStepIndex = 0;
+        ApplyTourPage(CurrentTourStep);
+        IsTourVisible = true;
+    }
+
+    private void NextTourStep()
+    {
+        if (IsLastTourStep)
+        {
+            FinishTour();
+            return;
+        }
+
+        TourStepIndex++;
+    }
+
+    private void PreviousTourStep()
+    {
+        if (TourStepIndex > 0) TourStepIndex--;
+    }
+
+    private void FinishTour()
+    {
+        IsTourVisible = false;
+        _hasCompletedTour = true;
+        SaveSettings();
+
+        // Возвращаем вкладку, с которой тур начался (при повторном запуске из настроек).
+        SelectedPageIndex = _pageBeforeTour;
+    }
+
+    private void ApplyTourPage(TourStep? step)
+    {
+        if (step?.PageIndex is int page && page != SelectedPageIndex)
+            SelectedPageIndex = page;
+    }
+
+    partial void OnIsTourVisibleChanged(bool value) => TourStepChanged?.Invoke();
+
+    partial void OnTourStepIndexChanged(int value)
+    {
+        ApplyTourPage(CurrentTourStep);
+        TourStepChanged?.Invoke();
+    }
+
     private bool _settingsLoaded;
 
     /// <summary>
@@ -1171,6 +1310,7 @@ public sealed partial class MainViewModel : ObservableObject
             RadarMirror = RadarMirror,
             RadarRangeIndex = RadarRangeIndex,
             AgentUseFakeData = AgentUseFakeData,
+            HasCompletedTour = _hasCompletedTour,
         });
     }
 

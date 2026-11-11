@@ -2,12 +2,14 @@ using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using EnduranceHub.Client.Diagnostics;
 using EnduranceHub.Client.ViewModels;
 
 namespace EnduranceHub.Client.Views;
@@ -21,6 +23,18 @@ public partial class MainWindow : Window
     private readonly TelemetryChartRenderer? _gasChart;
     private readonly TelemetryChartRenderer? _brakeChart;
     private readonly TelemetryChartRenderer? _steerChart;
+
+    private readonly ListBox? _navList;
+    private readonly Panel? _tourOverlay;
+    private readonly Border? _tourCard;
+    private readonly Rectangle? _tourHighlight;
+    private readonly Rectangle? _tourDimTop;
+    private readonly Rectangle? _tourDimBottom;
+    private readonly Rectangle? _tourDimLeft;
+    private readonly Rectangle? _tourDimRight;
+    private Button? _tourNextButton;
+    private bool _tourFocused;
+    private string _lastTourLayout = "";
     private bool _started;
 
     public MainWindow()
@@ -29,8 +43,35 @@ public partial class MainWindow : Window
         Opened += (_, _) =>
         {
             ApplyWindowsChrome();
-            (DataContext as MainViewModel)?.ConnectCommand.Execute(null);
+            if (DataContext is MainViewModel vm)
+            {
+                vm.ConnectCommand.Execute(null);
+
+                // Тур запускаем после первой раскладки: до неё у элементов нулевые границы
+                // и подсветить кнопку не получится.
+                Dispatcher.UIThread.Post(() =>
+                {
+                    vm.TryStartTour();
+                    UpdateTourOverlay();
+                }, DispatcherPriority.Loaded);
+            }
         };
+
+        _navList = this.FindControl<ListBox>("NavList");
+        _tourOverlay = this.FindControl<Panel>("TourOverlay");
+        _tourCard = this.FindControl<Border>("TourCard");
+        _tourHighlight = this.FindControl<Rectangle>("TourHighlight");
+        _tourDimTop = this.FindControl<Rectangle>("TourDimTop");
+        _tourDimBottom = this.FindControl<Rectangle>("TourDimBottom");
+        _tourDimLeft = this.FindControl<Rectangle>("TourDimLeft");
+        _tourDimRight = this.FindControl<Rectangle>("TourDimRight");
+        _tourNextButton = this.FindControl<Button>("TourNextButton");
+
+        // Туннельный обработчик: ListBox и TextBox перехватывают стрелки, поэтому
+        // на уровне окна в обычной (bubbling) фазе до тура они не доходят.
+        AddHandler(KeyDownEvent, OnTourKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+
+        SizeChanged += (_, _) => UpdateTourOverlay();
 
         _mapCanvas = this.FindControl<Canvas>("MapCanvas");
         _radarCanvas = this.FindControl<Canvas>("RadarCanvas");
@@ -63,6 +104,7 @@ public partial class MainWindow : Window
         vm.MapUpdated += () => Dispatcher.UIThread.Post(RenderMap);
         vm.RadarUpdated += () => Dispatcher.UIThread.Post(RenderRadar);
         vm.GapTrendChanged += () => Dispatcher.UIThread.Post(RenderGapTrend);
+        vm.TourStepChanged += () => Dispatcher.UIThread.Post(UpdateTourOverlay, DispatcherPriority.Loaded);
 
         // Логи Server/Agent — виртуализированные списки. Держим прокрутку внизу,
         // чтобы новые строки были видны без ручного скролла.
@@ -152,6 +194,185 @@ public partial class MainWindow : Window
         var row = vm.SelectedStanding;
         if (row == null || !vm.IsPage0) return;
         GapTrendRenderer.Render(_gapTrendCanvas, vm.GetGapHistory(row.CarIndex), vm.HistoryNow);
+    }
+
+    // ===================== ОБУЧЕНИЕ =====================
+
+    /// <summary>
+    /// Раскладывает затемнение, подсветку и карточку по реальным границам элемента.
+    /// Четыре прямоугольника вокруг цели дают «окно» без масок и композитинга.
+    /// </summary>
+    private void UpdateTourOverlay()
+    {
+        if (_tourOverlay == null) return;
+
+        if (DataContext is not MainViewModel vm || !vm.IsTourVisible)
+        {
+            _tourOverlay.IsVisible = false;
+            _tourFocused = false;
+            return;
+        }
+
+        _tourOverlay.IsVisible = true;
+
+        var width = _tourOverlay.Bounds.Width;
+        var height = _tourOverlay.Bounds.Height;
+        if (width <= 0 || height <= 0) return;
+
+        var target = GetTourTargetRect(vm);
+
+        if (target is Rect rect)
+        {
+            SetDim(_tourDimTop, 0, 0, width, rect.Y);
+            SetDim(_tourDimBottom, 0, rect.Bottom, width, height - rect.Bottom);
+            SetDim(_tourDimLeft, 0, rect.Y, rect.X, rect.Height);
+            SetDim(_tourDimRight, rect.Right, rect.Y, width - rect.Right, rect.Height);
+
+            if (_tourHighlight != null)
+            {
+                _tourHighlight.IsVisible = true;
+                _tourHighlight.Width = rect.Width + 8;
+                _tourHighlight.Height = rect.Height + 8;
+                Canvas.SetLeft(_tourHighlight, rect.X - 4);
+                Canvas.SetTop(_tourHighlight, rect.Y - 4);
+            }
+        }
+        else
+        {
+            SetDim(_tourDimTop, 0, 0, width, height);
+            SetDim(_tourDimBottom, 0, 0, 0, 0);
+            SetDim(_tourDimLeft, 0, 0, 0, 0);
+            SetDim(_tourDimRight, 0, 0, 0, 0);
+            if (_tourHighlight != null) _tourHighlight.IsVisible = false;
+        }
+
+        PositionTourCard(width, height, target);
+
+        // Фокус на «Далее»: Enter/Space работают сразу, а стрелки не уходят в ListBox.
+        if (!_tourFocused)
+        {
+            _tourFocused = true;
+            _tourNextButton?.Focus();
+        }
+    }
+
+    private static void SetDim(Rectangle? rectangle, double x, double y, double width, double height)
+    {
+        if (rectangle == null) return;
+
+        if (width <= 0 || height <= 0)
+        {
+            rectangle.IsVisible = false;
+            return;
+        }
+
+        rectangle.IsVisible = true;
+        rectangle.Width = width;
+        rectangle.Height = height;
+        Canvas.SetLeft(rectangle, x);
+        Canvas.SetTop(rectangle, y);
+    }
+
+    private void PositionTourCard(double width, double height, Rect? target)
+    {
+        if (_tourCard == null) return;
+
+        const double margin = 16;
+        _tourCard.Measure(new Size(_tourCard.Width, double.PositiveInfinity));
+        var cardWidth = _tourCard.DesiredSize.Width;
+        var cardHeight = _tourCard.DesiredSize.Height;
+
+        double x;
+        double y;
+
+        if (target is Rect rect)
+        {
+            // Справа от цели, если хватает места, иначе слева, иначе прижимаем к краю.
+            if (rect.Right + margin + cardWidth <= width)
+                x = rect.Right + margin;
+            else if (rect.X - margin - cardWidth >= 0)
+                x = rect.X - margin - cardWidth;
+            else
+                x = rect.X;
+
+            y = rect.Y + rect.Height / 2 - cardHeight / 2;
+        }
+        else
+        {
+            x = (width - cardWidth) / 2;
+            y = (height - cardHeight) / 2;
+        }
+
+        x = Math.Clamp(x, margin, Math.Max(margin, width - cardWidth - margin));
+        y = Math.Clamp(y, margin, Math.Max(margin, height - cardHeight - margin));
+
+        Canvas.SetLeft(_tourCard, x);
+        Canvas.SetTop(_tourCard, y);
+
+        if (DataContext is MainViewModel vm)
+        {
+            var signature = $"{vm.TourCounterText}|{target}|{x:0}|{y:0}|{width:0}x{height:0}";
+            if (signature != _lastTourLayout)
+            {
+                _lastTourLayout = signature;
+                DebugLog.Write($"Tour {vm.TourCounterText}: target={target?.ToString() ?? "none"} card={x:0},{y:0}");
+            }
+        }
+    }
+
+    /// <summary>Границы подсвечиваемого элемента в координатах оверлея.</summary>
+    private Rect? GetTourTargetRect(MainViewModel vm)
+    {
+        if (_tourOverlay == null) return null;
+
+        var step = vm.CurrentTourStep;
+        if (step?.Target == null) return null;
+
+        Control? target = step.Target switch
+        {
+            "nav" when step.NavIndex is int index => GetNavItem(index),
+            "connect" => this.FindControl<Control>("ConnectPanel"),
+            _ => this.FindControl<Control>(step.Target),
+        };
+
+        if (target == null) return null;
+
+        var origin = target.TranslatePoint(new Point(0, 0), _tourOverlay);
+        if (origin == null) return null;
+
+        var size = target.Bounds.Size;
+        if (size.Width <= 0 || size.Height <= 0) return null;
+
+        return new Rect(origin.Value, size);
+    }
+
+    private Control? GetNavItem(int index)
+    {
+        // Пункт навигации может быть ещё не создан (виртуализация) — тогда
+        // подсвечиваем весь список, это лучше, чем ничего.
+        var container = _navList?.ContainerFromIndex(index);
+        return container ?? _navList;
+    }
+
+    private void OnTourKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm || !vm.IsTourVisible) return;
+
+        switch (e.Key)
+        {
+            case Key.Escape:
+                vm.SkipTourCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Left:
+                vm.PreviousTourStepCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Right:
+                vm.NextTourStepCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
     }
 
     /// <summary>

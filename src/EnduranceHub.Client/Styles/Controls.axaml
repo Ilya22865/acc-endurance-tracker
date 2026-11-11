@@ -115,6 +115,13 @@
     <Setter Property="CornerRadius" Value="6"/>
     <Setter Property="ClipToBounds" Value="True"/>
   </Style>
+  <Style Selector="Border.tourcard">
+    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
   <Style Selector="Border.cardhead">
     <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>

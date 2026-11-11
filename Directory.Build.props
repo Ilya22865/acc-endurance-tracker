@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Общие метаданные для всех сборок. Антивирусы и SmartScreen смотрят на
+       версию, издателя и описание в PE-файле: пустые поля выглядят подозрительно. -->
+  <PropertyGroup>
+    <Company>EnduranceHub</Company>
+    <Product>EnduranceHub</Product>
+    <Description>Endurance racing telemetry, stints and race control for Assetto Corsa Competizione.</Description>
+    <Copyright>Copyright © 2026 EnduranceHub</Copyright>
+    <Authors>EnduranceHub</Authors>
+    <RepositoryUrl>https://github.com/Ilya22865/acc-endurance-tracker</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

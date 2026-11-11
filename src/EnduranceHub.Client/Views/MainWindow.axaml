@@ -77,7 +77,7 @@
           <Border Grid.Column="5" Classes="vsep"/>
 
           <!-- подключение -->
-          <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <StackPanel x:Name="ConnectPanel" Grid.Column="6" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <TextBox Width="176" PlaceholderText="192.168.1.20:5261" Text="{Binding ServerUrl}"/>
             <Button Content="Подключить" Command="{Binding ConnectCommand}" Classes="primary"/>
             <TextBlock Classes="muted" FontSize="11" MaxWidth="140" TextTrimming="CharacterEllipsis"
@@ -125,7 +125,7 @@
           <TextBlock Classes="navversion" Text="{Binding CurrentVersionText}"/>
         </StackPanel>
 
-        <ListBox Classes="nav" ItemsSource="{Binding NavItems}"
+        <ListBox x:Name="NavList" Classes="nav" ItemsSource="{Binding NavItems}"
                  SelectedIndex="{Binding SelectedPageIndex, Mode=TwoWay}">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:NavItem">
@@ -833,6 +833,14 @@
           </Border>
 
           <Border Classes="card" Padding="20">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="label" Text="ОБУЧЕНИЕ"/>
+              <TextBlock Classes="secondary" TextWrapping="Wrap" Text="Короткий тур по интерфейсу: подсветит нужную кнопку и объяснит, что она делает."/>
+              <Button Content="Пройти обучение заново" Command="{Binding StartTourCommand}" Classes="primary" HorizontalAlignment="Left"/>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="20">
             <StackPanel Spacing="6">
               <TextBlock Classes="label" Text="О ПРОГРАММЕ"/>
               <TextBlock Classes="secondary" Text="GitHub: https://github.com/Ilya22865/acc-endurance-tracker"/>
@@ -856,5 +864,39 @@
         <TextBlock Grid.Column="2" Classes="muted" FontSize="11" VerticalAlignment="Center" Text="{Binding ServerUrl}"/>
       </Grid>
     </Border>
+
+    <!-- ===================== ОБУЧЕНИЕ ===================== -->
+    <!-- Затемнение с «окном» вокруг нужного элемента и карточка с пояснением.
+         Геометрия считается в MainWindow.axaml.cs по реальным границам контрола. -->
+    <Panel x:Name="TourOverlay" Grid.RowSpan="4" Grid.ColumnSpan="2"
+           Background="Transparent" IsVisible="False" ZIndex="100">
+      <Canvas x:Name="TourCanvas">
+        <Rectangle x:Name="TourDimTop" Fill="#D9080A0C"/>
+        <Rectangle x:Name="TourDimBottom" Fill="#D9080A0C"/>
+        <Rectangle x:Name="TourDimLeft" Fill="#D9080A0C"/>
+        <Rectangle x:Name="TourDimRight" Fill="#D9080A0C"/>
+        <Rectangle x:Name="TourHighlight" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"
+                   RadiusX="4" RadiusY="4" IsVisible="False"/>
+
+        <Border x:Name="TourCard" Width="368" Classes="tourcard">
+          <StackPanel>
+            <Border Height="2" Background="{DynamicResource AccentBrush}"/>
+            <StackPanel Margin="20,16,20,18" Spacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="label" Text="ОБУЧЕНИЕ"/>
+                <TextBlock Grid.Column="1" Classes="mono muted" FontSize="11" Text="{Binding TourCounterText}"/>
+              </Grid>
+              <TextBlock Classes="h2" Text="{Binding CurrentTourStep.Title}" TextWrapping="Wrap"/>
+              <TextBlock Classes="secondary" Text="{Binding CurrentTourStep.Body}" TextWrapping="Wrap" LineHeight="18"/>
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,4,0,0">
+                <Button Content="Пропустить" Command="{Binding SkipTourCommand}" Classes="ghost"/>
+                <Button Content="Назад" Command="{Binding PreviousTourStepCommand}" IsVisible="{Binding !IsFirstTourStep}"/>
+                <Button Content="{Binding TourNextText}" Command="{Binding NextTourStepCommand}" Classes="primary" x:Name="TourNextButton"/>
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Canvas>
+    </Panel>
   </Grid>
 </Window>
