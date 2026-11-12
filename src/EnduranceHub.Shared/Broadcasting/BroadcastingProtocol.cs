@@ -15,9 +15,16 @@ public sealed class BroadcastingProtocol : IDisposable
     private readonly int _msInterval;
     private readonly string _commandPassword;
 
+    private static readonly TimeSpan LostTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan RegisterRetryInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan EntryListRetryInterval = TimeSpan.FromSeconds(5);
+
     private volatile bool _registered;
     private DateTime _lastEntryListRequestUtc = DateTime.MinValue;
     private DateTime _lastMessageUtc = DateTime.UtcNow;
+    private DateTime _lastRegisterSentUtc = DateTime.MinValue;
+    // Unregister имеет смысл только если мы уже регистрировались на этом сокете.
+    private bool _hasRegistered;
 
     public int ConnectionId { get; private set; }
     public string ConnectionIdentifier { get; }
@@ -26,6 +33,8 @@ public sealed class BroadcastingProtocol : IDisposable
 
     public event Action<string>? OnConnectionStateChanged;
     public event Action<CarInfo>? OnEntrylistUpdate;
+    /// <summary>Полный (авторитетный) набор индексов машин из сообщения EntryList.</summary>
+    public event Action<IReadOnlyList<ushort>>? OnEntryListIndices;
     public event Action<RealtimeUpdate>? OnRealtimeUpdate;
     public event Action<RealtimeCarUpdate>? OnRealtimeCarUpdate;
     public event Action<BroadcastingEvent>? OnBroadcastingEvent;
@@ -68,14 +77,32 @@ public sealed class BroadcastingProtocol : IDisposable
             {
                 if (!_registered)
                 {
-                    RequestConnection(_displayName, _connectionPassword, _msInterval, _commandPassword);
+                    if (DateTime.UtcNow - _lastRegisterSentUtc >= RegisterRetryInterval)
+                    {
+                        // ВАЖНО: сначала снимаем прошлую регистрацию с этого же сокета.
+                        // ACC создаёт новое соединение на каждый Register, а Unregister
+                        // не шлёт никто — соединения копятся. Каждое из них получает
+                        // копию каждого события (в логе видно 2, 5, 15 одинаковых
+                        // LapCompleted подряд), а когда их становится слишком много,
+                        // игра перестаёт присылать realtime-обновления вовсе.
+                        if (_hasRegistered)
+                            Unregister();
+                        RequestConnection(_displayName, _connectionPassword, _msInterval, _commandPassword);
+                        _lastRegisterSentUtc = DateTime.UtcNow;
+                    }
                 }
-                else if (DateTime.UtcNow - _lastMessageUtc > TimeSpan.FromSeconds(10))
+                else if (DateTime.UtcNow - _lastMessageUtc > LostTimeout)
                 {
                     // от игры давно ничего не шло — считаем связь потерянной
-                    // (и сообщаем об этом: раньше статус «подключено» оставался навсегда)
+                    // (и сообщаем об этом: раньше статус «подключено» оставался навсегда).
+                    // Перерегистрируемся на следующей итерации, но не чаще RegisterRetryInterval.
                     _registered = false;
-                    OnConnectionStateChanged?.Invoke("Lost: no messages for 10s");
+                    _lastRegisterSentUtc = DateTime.MinValue;
+                    OnConnectionStateChanged?.Invoke($"Lost: no messages for {LostTimeout.TotalSeconds:F0}s");
+                }
+                else
+                {
+                    RequestEntryListIfIncomplete();
                 }
             }
             catch (OperationCanceledException) { break; }
@@ -83,13 +110,32 @@ public sealed class BroadcastingProtocol : IDisposable
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+                await Task.Delay(TimeSpan.FromSeconds(1), ct);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Периодически перезапрашивает список машин, пока он неполный. UDP не гарантирует
+    /// доставку, а без списка в таблице позиций вместо номеров и команд остаются нули.
+    /// </summary>
+    private void RequestEntryListIfIncomplete()
+    {
+        if (DateTime.UtcNow - _lastEntryListRequestUtc < EntryListRetryInterval) return;
+
+        bool incomplete;
+        lock (_lock)
+        {
+            incomplete = _entryList.Count == 0 || _entryList.Values.Any(c => c.Drivers.Count == 0);
+        }
+        if (!incomplete) return;
+
+        _lastEntryListRequestUtc = DateTime.UtcNow;
+        SendRequest(RequestType.EntryList);
     }
 
     private async Task ListenerLoopAsync(CancellationToken ct)
@@ -139,6 +185,12 @@ public sealed class BroadcastingProtocol : IDisposable
                 OnConnectionStateChanged?.Invoke($"{(success ? "Connected" : "Failed")}, readonly={isReadonly}, error={error}");
                 if (success)
                 {
+                    // Сначала обновляем время/флаги, потом _registered: иначе цикл
+                    // регистрации успевает увидеть «зарегистрированы» со старым
+                    // _lastEntryListRequestUtc и шлёт лишний запрос списка машин.
+                    _hasRegistered = true;
+                    _lastMessageUtc = DateTime.UtcNow;
+                    _lastEntryListRequestUtc = DateTime.UtcNow;
                     _registered = true;
                     SendRequest(RequestType.EntryList);
                     SendRequest(RequestType.TrackData);
@@ -153,7 +205,7 @@ public sealed class BroadcastingProtocol : IDisposable
             {
                 _ = reader.ReadInt32();
                 var carCount = reader.ReadUInt16();
-                var listedCars = new HashSet<ushort>(carCount);
+                var listedCars = new List<ushort>(carCount);
                 for (int i = 0; i < carCount; i++)
                 {
                     var carIndex = reader.ReadUInt16();
@@ -165,8 +217,15 @@ public sealed class BroadcastingProtocol : IDisposable
                 }
 
                 // Список машин — авторитетный: убираем только те индексы, которых в нём нет.
-                foreach (var stale in _entryList.Keys.Where(k => !listedCars.Contains(k)).ToList())
-                    _entryList.Remove(stale);
+                // Пустой список часто приходит до загрузки сессии — не стираем известные машины.
+                if (listedCars.Count > 0)
+                {
+                    var listed = listedCars.ToHashSet();
+                    foreach (var stale in _entryList.Keys.Where(k => !listed.Contains(k)).ToList())
+                        _entryList.Remove(stale);
+                }
+
+                OnEntryListIndices?.Invoke(listedCars);
                 break;
             }
             case InboundMessageTypes.EntryListCar:
@@ -264,7 +323,9 @@ public sealed class BroadcastingProtocol : IDisposable
 
                 // Как в официальном SDK: если машины нет в списке или число пилотов изменилось
                 // (пакеты UDP терялись / смена пилота), запрашиваем список заново (не чаще раза в секунду).
-                if ((!_entryList.TryGetValue(update.CarIndex, out var knownCar) || knownCar.Drivers.Count != update.DriverCount)
+                // До успешной регистрации ConnectionId ещё 0 — такой запрос игра всё равно проигнорирует.
+                if (_registered
+                    && (!_entryList.TryGetValue(update.CarIndex, out var knownCar) || knownCar.Drivers.Count != update.DriverCount)
                     && DateTime.UtcNow - _lastEntryListRequestUtc > TimeSpan.FromSeconds(1))
                 {
                     _lastEntryListRequestUtc = DateTime.UtcNow;
@@ -338,6 +399,26 @@ public sealed class BroadcastingProtocol : IDisposable
             : lap;
     }
 
+    /// <summary>
+    /// Сообщает ACC, что это соединение больше не нужно. Без этого каждое повторное
+    /// Register создаёт в игре новое «фантомное» соединение.
+    /// </summary>
+    private void Unregister()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                byte[] payload = Build(bytes => bytes.Write((byte)OutboundMessageTypes.UnregisterCommandApplication));
+                _client.Send(payload, payload.Length);
+            }
+            catch
+            {
+                // сокет уже закрыт — нечего снимать
+            }
+        }
+    }
+
     private void RequestConnection(string displayName, string connectionPassword, int msInterval, string commandPassword)
     {
         lock (_lock)
@@ -401,15 +482,7 @@ public sealed class BroadcastingProtocol : IDisposable
 
     public void Dispose()
     {
-        lock (_lock)
-        {
-            try
-            {
-                byte[] payload = Build(bytes => bytes.Write((byte)OutboundMessageTypes.UnregisterCommandApplication));
-                _client.Send(payload, payload.Length);
-            }
-            catch { }
-        }
+        Unregister();
         _cts.Cancel();
         _client.Dispose();
     }

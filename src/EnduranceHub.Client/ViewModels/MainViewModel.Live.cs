@@ -218,14 +218,21 @@ public sealed partial class MainViewModel
     private static void FillRow(StandingsRow row, CarStateDto c, RealtimeStateDto rt)
     {
         row.Position = c.Position;
-        row.RaceNumber = c.RaceNumber;
+
+        // После перезапуска сервера ACC не всегда сразу отдаёт список машин. Не затираем
+        // уже известные номер и команду нулём/пустой строкой — иначе вся таблица на миг
+        // (или навсегда) превращается в «0» и «Car #N».
+        if (c.RaceNumber > 0)
+            row.RaceNumber = c.RaceNumber;
+
         // В онлайне ACC иногда присылает пустое название команды. Показываем хотя бы
         // модель машины, чтобы строка не выглядела «битой».
-        row.TeamName = !string.IsNullOrWhiteSpace(c.TeamName)
-            ? c.TeamName
-            : !string.IsNullOrWhiteSpace(c.CarModelName)
+        if (!string.IsNullOrWhiteSpace(c.TeamName))
+            row.TeamName = c.TeamName;
+        else if (string.IsNullOrWhiteSpace(row.TeamName))
+            row.TeamName = !string.IsNullOrWhiteSpace(c.CarModelName)
                 ? c.CarModelName
-                : c.RaceNumber > 0 ? $"#{c.RaceNumber}" : $"Car {c.CarIndex}";
+                : row.RaceNumber > 0 ? $"#{row.RaceNumber}" : $"Car {c.CarIndex}";
         row.Driver = c.Driver;
         row.CarModel = c.CarModelName;
         row.Laps = c.Laps;

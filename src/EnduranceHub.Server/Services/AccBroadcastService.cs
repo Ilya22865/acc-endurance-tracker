@@ -71,6 +71,11 @@ public sealed class AccBroadcastService : BackgroundService
             _sessionState.UpdateEntryListCar(car);
         };
 
+        _protocol.OnEntryListIndices += indices =>
+        {
+            _sessionState.PruneEntryList(indices);
+        };
+
         _protocol.OnRealtimeUpdate += update =>
         {
             _sessionState.ProcessRealtimeUpdate(update);

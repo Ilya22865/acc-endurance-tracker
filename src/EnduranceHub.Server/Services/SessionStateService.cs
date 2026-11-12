@@ -63,16 +63,63 @@ public sealed class SessionStateService
     private string _lastEventText = "";
     private DateTime _lastEventAt = DateTime.MinValue;
 
-    private readonly List<(float S, float X, float Y)> _currentLapPoints = new();
-    private bool _lapDirty;
+    // Контур пишется с ЛЮБОЙ машины: у каждой свой буфер круга. Раньше писали только
+    // с «нашей» машины, а её определение (OurCarRaceNumber/FocusedCarIndex) в онлайне
+    // часто ошибочно — и карта не записывалась, даже если чистый круг проехал кто-то другой.
+    private sealed class LapRecorder
+    {
+        public int LastLap = -1;
+        public bool Dirty;
+        public readonly List<(float S, float X, float Y)> Points = new();
+    }
+
+    private readonly Dictionary<ushort, LapRecorder> _lapRecorders = new();
     private List<OutlinePointDto>? _recordedOutline;
     private long _outlineRevision;
-    private int _lastRecordedLap = -1;
+    private bool _outlineComplete;
     private string? _outlineTrackKey;
 
     private static readonly string OutlineDirectory = Path.Combine(
         EnduranceHub.Shared.AppPaths.LocalDataDirectory,
         "outlines");
+
+    // Список машин переживает перезапуск сервера: без него в таблице позиций
+    // оказываются нулевые номера и «Car #N» вместо названий команд.
+    private static readonly string EntryListCachePath = Path.Combine(
+        EnduranceHub.Shared.AppPaths.LocalDataDirectory,
+        "entrylist-cache.json");
+
+    private DateTime _lastEntryListCacheWriteUtc = DateTime.MinValue;
+    private bool _entryListCacheDirty;
+    private int _entryListCacheCarCount = -1;
+
+    private sealed class EntryListCache
+    {
+        public string TrackName { get; set; } = "";
+        public DateTime SavedAtUtc { get; set; }
+        public List<CachedCar> Cars { get; set; } = new();
+    }
+
+    private sealed class CachedCar
+    {
+        public ushort CarIndex { get; set; }
+        public byte CarModelType { get; set; }
+        public string TeamName { get; set; } = "";
+        public int RaceNumber { get; set; }
+        public byte CupCategory { get; set; }
+        public byte CurrentDriverIndex { get; set; }
+        public ushort Nationality { get; set; }
+        public List<CachedDriver> Drivers { get; set; } = new();
+    }
+
+    private sealed class CachedDriver
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string ShortName { get; set; } = "";
+        public byte Category { get; set; }
+        public ushort Nationality { get; set; }
+    }
 
     public event Action<SessionSnapshotDto>? OnStateChanged;
 
@@ -108,7 +155,12 @@ public sealed class SessionStateService
         {
             _entryList.Clear();
             foreach (var car in cars)
+            {
                 _entryList[car.CarIndex] = car;
+                UpdateDriverStates(car);
+                ApplyEntryListToState(car);
+            }
+            SaveEntryListCache(force: true);
         }
     }
 
@@ -121,6 +173,135 @@ public sealed class SessionStateService
             // Список машин может прийти уже после первых RealtimeCarUpdate. Применяем его
             // к существующему состоянию сразу, не дожидаясь следующего пакета с трассы.
             ApplyEntryListToState(car);
+            SaveEntryListCache();
+        }
+    }
+
+    /// <summary>
+    /// ACC прислал авторитетный список индексов: убираем машины, которых в сессии нет.
+    /// Пустой список игнорируем — он приходит до загрузки сессии и не должен стирать кэш.
+    /// </summary>
+    public void PruneEntryList(IReadOnlyCollection<ushort> carIndices)
+    {
+        if (carIndices.Count == 0) return;
+
+        lock (_lock)
+        {
+            var keep = carIndices.Select(i => (int)i).ToHashSet();
+            foreach (var key in _entryList.Keys.Where(k => !keep.Contains(k)).ToList())
+                _entryList.Remove(key);
+            SaveEntryListCache(force: true);
+        }
+    }
+
+    // Вызывать под _lock.
+    // ACC присылает EntryListCar постоянно, поэтому кэш пишем не чаще раза в 5 секунд
+    // (force=true — когда важно сохранить прямо сейчас).
+    private void SaveEntryListCache(bool force = false)
+    {
+        var track = !string.IsNullOrWhiteSpace(_realtime.TrackName) ? _realtime.TrackName : _eventTrack;
+        if (string.IsNullOrWhiteSpace(track) || _entryList.Count == 0) return;
+
+        // Данные изменились; если писать сейчас рано — запишем при следующем
+        // realtime-обновлении (см. ProcessRealtimeUpdate). Появление новой машины
+        // в списке пишем сразу, иначе кэш может остаться неполным.
+        _entryListCacheDirty = true;
+        var newCar = _entryList.Count != _entryListCacheCarCount;
+        if (!force && !newCar && DateTime.UtcNow - _lastEntryListCacheWriteUtc < TimeSpan.FromSeconds(5)) return;
+
+        try
+        {
+            var cache = new EntryListCache
+            {
+                TrackName = track,
+                SavedAtUtc = DateTime.UtcNow,
+                Cars = _entryList.Values.Select(c => new CachedCar
+                {
+                    CarIndex = c.CarIndex,
+                    CarModelType = c.CarModelType,
+                    TeamName = c.TeamName,
+                    RaceNumber = c.RaceNumber,
+                    CupCategory = c.CupCategory,
+                    CurrentDriverIndex = c.CurrentDriverIndex,
+                    Nationality = c.Nationality,
+                    Drivers = c.Drivers.Select(d => new CachedDriver
+                    {
+                        FirstName = d.FirstName,
+                        LastName = d.LastName,
+                        ShortName = d.ShortName,
+                        Category = d.Category,
+                        Nationality = d.Nationality,
+                    }).ToList(),
+                }).ToList(),
+            };
+
+            Directory.CreateDirectory(EnduranceHub.Shared.AppPaths.LocalDataDirectory);
+            File.WriteAllText(EntryListCachePath, JsonSerializer.Serialize(cache));
+            _lastEntryListCacheWriteUtc = DateTime.UtcNow;
+            _entryListCacheDirty = false;
+            _entryListCacheCarCount = _entryList.Count;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to save entry list cache");
+        }
+    }
+
+    // Вызывать под _lock.
+    private void RestoreEntryListCache(string trackName)
+    {
+        try
+        {
+            if (!File.Exists(EntryListCachePath)) return;
+
+            var cache = JsonSerializer.Deserialize<EntryListCache>(File.ReadAllText(EntryListCachePath));
+            if (cache?.Cars == null || cache.Cars.Count == 0) return;
+            // Старый кэш может относиться к другой сессии на той же трассе.
+            if (DateTime.UtcNow - cache.SavedAtUtc > TimeSpan.FromHours(12)) return;
+            if (!string.Equals(cache.TrackName, trackName, StringComparison.OrdinalIgnoreCase)) return;
+
+            var restored = 0;
+            foreach (var cached in cache.Cars)
+            {
+                if (cached.Drivers.Count == 0) continue;
+
+                var car = new CarInfo
+                {
+                    CarIndex = cached.CarIndex,
+                    CarModelType = cached.CarModelType,
+                    TeamName = cached.TeamName,
+                    RaceNumber = cached.RaceNumber,
+                    CupCategory = cached.CupCategory,
+                    CurrentDriverIndex = cached.CurrentDriverIndex,
+                    Nationality = cached.Nationality,
+                };
+                foreach (var d in cached.Drivers)
+                {
+                    car.Drivers.Add(new DriverInfo
+                    {
+                        FirstName = d.FirstName,
+                        LastName = d.LastName,
+                        ShortName = d.ShortName,
+                        Category = d.Category,
+                        Nationality = d.Nationality,
+                    });
+                }
+
+                _entryList[car.CarIndex] = car;
+                ApplyEntryListToState(car);
+                restored++;
+            }
+
+            if (restored > 0)
+            {
+                _logger.LogInformation(
+                    "Restored entry list from cache: {Count} cars for {Track}",
+                    restored, trackName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to restore entry list cache");
         }
     }
 
@@ -268,9 +449,7 @@ public sealed class SessionStateService
         _carStates.Clear();
         _activeDriverName = "";
         _dbEventId = null;
-        _lastRecordedLap = -1;
-        _lapDirty = false;
-        _currentLapPoints.Clear();
+        _lapRecorders.Clear();
         _timeProbeValid = false;
         _timelines.Clear();
         _clock.Reset();
@@ -352,11 +531,15 @@ public sealed class SessionStateService
             state.IsOurCar = isOurCar;
 
             if (isOurCar)
-            {
                 DetectStintChange(update, state);
-                RecordCarPosition(update);
-            }
 
+            // Контур пишем с любой машины: наша может быть определена неверно,
+            // а чистый круг в онлайне может проехать кто угодно.
+            RecordCarPosition(update);
+
+            // Отложенная запись кэша списка машин (см. SaveEntryListCache).
+            if (_entryListCacheDirty)
+                SaveEntryListCache();
         }
 
         MaybeBroadcast();
@@ -580,41 +763,52 @@ public sealed class SessionStateService
     // Вызывать под _lock.
     private void RecordCarPosition(RealtimeCarUpdate update)
     {
+        if (_outlineComplete) return;
+
+        if (!_lapRecorders.TryGetValue(update.CarIndex, out var recorder))
+        {
+            recorder = new LapRecorder();
+            _lapRecorders[update.CarIndex] = recorder;
+        }
+
         // Пит-лейн и въезд/выезд искажают контур: такой круг не годится для записи.
         if (update.CarLocation != BC.CarLocation.Track)
-            _lapDirty = true;
+            recorder.Dirty = true;
 
-        if (_lastRecordedLap < 0)
+        if (recorder.LastLap < 0)
         {
             // Запись началась посреди круга — этот круг неполный.
-            _lastRecordedLap = update.Laps;
-            _lapDirty = true;
+            recorder.LastLap = update.Laps;
+            recorder.Dirty = true;
             return;
         }
 
-        if (update.Laps != _lastRecordedLap)
+        if (update.Laps != recorder.LastLap)
         {
-            if (update.Laps > _lastRecordedLap && !_lapDirty)
-                FinalizeOutline(_lastRecordedLap);
+            if (update.Laps > recorder.LastLap && !recorder.Dirty)
+                FinalizeOutline(update.CarIndex, recorder.LastLap, recorder.Points);
 
-            _currentLapPoints.Clear();
-            _lapDirty = update.CarLocation != BC.CarLocation.Track;
-            _lastRecordedLap = update.Laps;
+            recorder.Points.Clear();
+            recorder.Dirty = update.CarLocation != BC.CarLocation.Track;
+            recorder.LastLap = update.Laps;
         }
 
         if (update.CarLocation == BC.CarLocation.Track)
-            _currentLapPoints.Add((update.SplinePosition, update.WorldPosX, update.WorldPosY));
+            recorder.Points.Add((update.SplinePosition, update.WorldPosX, update.WorldPosY));
     }
 
-    private void FinalizeOutline(int completedLap)
+    private void FinalizeOutline(ushort carIndex, int completedLap, List<(float S, float X, float Y)> lapPoints)
     {
+        if (_outlineComplete) return;
+
         // Точки пишутся по времени, а карта потом индексирует контур по SplinePosition.
         // Поэтому пересэмплируем контур равномерно по сплайну — иначе машинки «уезжают»
         // относительно реального положения (в медленных поворотах точек больше).
-        var pts = _currentLapPoints.OrderBy(p => p.S).ToList();
+        var pts = lapPoints.OrderBy(p => p.S).ToList();
         if (pts.Count < 50 || pts[0].S > 0.05f || pts[^1].S < 0.95f)
         {
-            _logger.LogDebug("Outline: lap {Lap} discarded (points={Count})", completedLap, pts.Count);
+            _logger.LogDebug("Outline: car {Car} lap {Lap} discarded (points={Count})",
+                carIndex, completedLap, pts.Count);
             return;
         }
 
@@ -623,7 +817,8 @@ public sealed class SessionStateService
             maxGap = Math.Max(maxGap, pts[i].S - pts[i - 1].S);
         if (maxGap > 0.05)
         {
-            _logger.LogDebug("Outline: lap {Lap} discarded (gap in spline coverage {Gap:F3})", completedLap, maxGap);
+            _logger.LogDebug("Outline: car {Car} lap {Lap} discarded (gap in spline coverage {Gap:F3})",
+                carIndex, completedLap, maxGap);
             return;
         }
 
@@ -662,10 +857,13 @@ public sealed class SessionStateService
 
         _recordedOutline = outline;
         _outlineRevision++;
+        _outlineComplete = true;
+        _lapRecorders.Clear();
         SaveOutlineToDisk(_outlineTrackKey ?? SanitizeTrackName(_realtime.TrackName), outline);
+        _entryList.TryGetValue(carIndex, out var recordingCar);
         _logger.LogInformation(
-            "Recorded outline #{Rev}: lap {Lap} completed, {Count} points, extents {W:F0}m x {H:F0}m",
-            _outlineRevision, completedLap, outline.Count, extX, extY);
+            "Recorded outline #{Rev}: lap {Lap} completed by car #{Race}, {Count} points, extents {W:F0}m x {H:F0}m",
+            _outlineRevision, completedLap, recordingCar?.RaceNumber ?? 0, outline.Count, extX, extY);
     }
 
     private static string SanitizeTrackName(string? trackName)
@@ -848,10 +1046,9 @@ public sealed class SessionStateService
                 return;
 
             _outlineTrackKey = key;
-            _currentLapPoints.Clear();
-            _lastRecordedLap = -1;
-            _lapDirty = false;
+            _lapRecorders.Clear();
             _recordedOutline = LoadOutlineFromDisk(key);
+            _outlineComplete = _recordedOutline != null;
             _outlineRevision++;
 
             if (_recordedOutline != null)
@@ -860,6 +1057,16 @@ public sealed class SessionStateService
                     "Loaded saved outline for track {Track}: {Count} points",
                     track.TrackName, _recordedOutline.Count);
             }
+            else
+            {
+                _logger.LogInformation(
+                    "Outline recording armed for track {Track}: waiting for a clean lap from any car",
+                    track.TrackName);
+            }
+
+            // После перезапуска сервера ACC не всегда сразу отдаёт список машин.
+            // Поднимаем его из кэша, чтобы номера и команды не превращались в нули.
+            RestoreEntryListCache(track.TrackName);
         }
     }
 
