@@ -7,11 +7,21 @@ Console.WriteLine("EnduranceHub Agent v1.0");
 Console.WriteLine($"  Сервер:   {options.ServerUrl}");
 Console.WriteLine($"  Agent ID: {options.AgentId}");
 
-var batch = new List<TelemetryReading>(1000);
+// Сколько сэмплов держим при обрыве связи. 2000 при ~40 Гц — это около 50 секунд:
+// переживаем переключение VPN/сети, но не копим бесполезные старые данные бесконечно.
+const int MaxBufferedSamples = 2000;
+// Пачку шлём небольшими кусками: большой JSON (500+ сэмплов) хуже проходит через
+// VPN/фрагментацию и дольше висит при таймауте.
+const int MaxBatchSize = 200;
+
+var pending = new Queue<TelemetryReading>(MaxBufferedSamples);
 var driverIndex = -1;
 var driverName = "";
 var driverId = ""; // уникальный ID для этого пилота
 var lastFlush = DateTime.UtcNow;
+var sendAllowedAt = DateTime.MinValue;
+var consecutiveFailures = 0;
+var linkDown = false;
 var samplesSent = 0L;
 
 using var cts = new CancellationTokenSource();
@@ -118,7 +128,7 @@ Console.WriteLine(registered ? "OK" : "FAILED");
 
 Console.WriteLine("Агент работает. Ctrl+C для выхода.\n");
 
-var lastRegister = DateTime.UtcNow;
+var nextRegister = DateTime.UtcNow + (registered ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(5));
 var lastPacketId = int.MinValue;
 
 try
@@ -131,31 +141,73 @@ try
             if (source.TryReadSample(out var sample) && sample.PacketId != lastPacketId)
             {
                 lastPacketId = sample.PacketId;
-                batch.Add(sample);
+                // при переполнении выбрасываем самый старый сэмпл: в графиках нужны свежие данные
+                if (pending.Count >= MaxBufferedSamples) pending.Dequeue();
+                pending.Enqueue(sample);
                 samplesSent++;
             }
 
             // Регистрация хранится на сервере в памяти и пропадает при его перезапуске
             // (после этого батчи молча отбрасывались). Повторяем её периодически — запрос идемпотентный.
-            if (DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(30))
+            if (DateTime.UtcNow >= nextRegister)
             {
-                lastRegister = DateTime.UtcNow;
-                await client.RegisterAsync(driverIndex, driverName, cts.Token);
+                var ok = await client.RegisterAsync(driverIndex, driverName, cts.Token);
+                nextRegister = DateTime.UtcNow + (ok ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(5));
             }
 
-            if (batch.Count >= 500 || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs))
+            var flushDue = pending.Count >= 500
+                || DateTime.UtcNow - lastFlush >= TimeSpan.FromMilliseconds(options.SendIntervalMs);
+
+            if (flushDue && DateTime.UtcNow >= sendAllowedAt)
             {
                 // флаги отправляем с каждой пачкой, даже пустой (ACC на паузе / в меню — сэмплов нет, флаги нужны)
                 FlagReading? flags = source.TryReadFlags(out var fr) ? fr : null;
-                var sent = await client.SendBatchAsync(batch, flags, cts.Token);
-                batch.Clear();
+
+                var count = Math.Min(pending.Count, MaxBatchSize);
+                var chunk = new List<TelemetryReading>(count);
+                if (count > 0)
+                {
+                    var i = 0;
+                    foreach (var reading in pending)
+                    {
+                        if (i++ >= count) break;
+                        chunk.Add(reading);
+                    }
+                }
+
+                var result = await client.SendBatchAsync(chunk, flags, cts.Token);
                 lastFlush = DateTime.UtcNow;
 
-                // сервер ответил отказом (обычно 409 — потерял регистрацию после перезапуска): регистрируемся сразу
-                if (!sent && DateTime.UtcNow - lastRegister >= TimeSpan.FromSeconds(2))
+                if (result == SendResult.Sent)
                 {
-                    lastRegister = DateTime.UtcNow;
-                    await client.RegisterAsync(driverIndex, driverName, cts.Token);
+                    for (var i = 0; i < count; i++) pending.Dequeue();
+                    sendAllowedAt = DateTime.MinValue;
+                    consecutiveFailures = 0;
+
+                    if (linkDown)
+                    {
+                        linkDown = false;
+                        Console.WriteLine($"[net] Связь с сервером восстановлена ({options.ServerUrl}).");
+                    }
+                }
+                else
+                {
+                    consecutiveFailures++;
+
+                    if (!linkDown)
+                    {
+                        linkDown = true;
+                        Console.WriteLine($"[net] Нет связи с сервером ({options.ServerUrl}). " +
+                            $"Телеметрия буферизуется ({pending.Count} сэмплов), переподключусь автоматически.");
+                    }
+
+                    // 409 — сервер потерял регистрацию (перезапуск): регистрируемся сразу.
+                    if (result == SendResult.Rejected)
+                        nextRegister = DateTime.MinValue;
+
+                    // 0.25, 0.5, 1, 2, 3, 3… секунд: не долбим сервер и не тратим CPU на таймауты.
+                    var backoffMs = Math.Min(3000, 250 * Math.Pow(2, Math.Min(consecutiveFailures - 1, 4)));
+                    sendAllowedAt = DateTime.UtcNow + TimeSpan.FromMilliseconds(backoffMs);
                 }
             }
 

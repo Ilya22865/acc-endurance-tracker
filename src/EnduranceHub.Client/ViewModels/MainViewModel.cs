@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows.Input;
@@ -19,6 +21,10 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly string _baseUrl;
     private ApiClient? _api;
     private HubClient? _hub;
+    private string? _apiUrl;
+    private readonly SemaphoreSlim _retryNow = new(0, 1);
+    private bool _shutdown;
+    private int _networkChangeSeq;
     private readonly Dictionary<int, StintRow> _stintById = new();
 
     public ObservableCollection<StandingsRow> Standings { get; } = new();
@@ -238,6 +244,10 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _baseUrl = baseUrl;
         ServerUrl = baseUrl;
+
+        // Смена сети/VPN: будим цикл подключения и проверяем, жив ли текущий канал.
+        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+
         ConnectCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ConnectAsync);
         SaveStintCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(SaveStintAsync);
         RefreshSetupsCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadSetupsAsync);
@@ -430,14 +440,87 @@ public sealed partial class MainViewModel : ObservableObject
         _connecting = true;
         try
         {
-            // Первое подключение не удалось (сервер ещё не запущен) — повторяем, а не остаёмся
-            // навсегда в состоянии «Ошибка».
-            while (!await TryConnectOnceAsync())
-                await Task.Delay(TimeSpan.FromSeconds(3));
+            // Первое подключение не удалось (сервер ещё не запущен / VPN не пропускает) —
+            // повторяем, а не остаёмся навсегда в состоянии «Ошибка». Ждём 1,2,3,4,5… с,
+            // но просыпаемся сразу, если сменилась сеть (включили/выключили VPN).
+            var delay = TimeSpan.FromSeconds(1);
+            while (!_shutdown)
+            {
+                if (await TryConnectOnceAsync()) return;
+
+                using var waitCts = new CancellationTokenSource();
+                var wake = _retryNow.WaitAsync(waitCts.Token);
+                var finished = await Task.WhenAny(Task.Delay(delay), wake);
+                waitCts.Cancel();
+                try { await wake; } catch (OperationCanceledException) { }
+
+                delay = finished == wake
+                    ? TimeSpan.FromSeconds(1)
+                    : TimeSpan.FromSeconds(Math.Min(5, delay.TotalSeconds + 1));
+            }
         }
         finally
         {
             _connecting = false;
+        }
+    }
+
+    private void OnNetworkAddressChanged(object? sender, EventArgs e)
+    {
+        // VPN-клиенты меняют несколько адаптеров подряд: обрабатываем только последнее событие.
+        var seq = Interlocked.Increment(ref _networkChangeSeq);
+        // Даём Windows применить новые маршруты/настройки прокси, затем проверяем связь.
+        _ = HandleNetworkChangeAsync(seq);
+    }
+
+    private async Task HandleNetworkChangeAsync(int seq)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            if (_shutdown || seq != Volatile.Read(ref _networkChangeSeq)) return;
+
+            if (!IsConnected)
+            {
+                // Если цикл подключения сейчас ждёт — разбудим его, чтобы он не тянул 3-5 с.
+                if (_retryNow.CurrentCount == 0) _retryNow.Release();
+                return;
+            }
+
+            // Соединение помечено живым, но после смены маршрута сокет мог умереть.
+            // Дешёвая проверка: обычный GET к API. Не прошла — переподключаем SignalR.
+            var api = _api;
+            if (api == null) return;
+            try
+            {
+                using var probeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await api.GetSnapshotAsync(probeCts.Token);
+                return;
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("Network change: server probe failed: " + ex.Message);
+            }
+
+            var hub = _hub;
+            if (hub == null || _shutdown) return;
+            try
+            {
+                using var reconnectCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                await hub.ForceReconnectAsync(reconnectCts.Token);
+                Dispatcher.UIThread.Post(() => ConnectionStatus = "Подключено");
+            }
+            catch (Exception ex)
+            {
+                DebugLog.Write("Network change: forced reconnect failed: " + ex.Message);
+                if (_retryNow.CurrentCount == 0) _retryNow.Release();
+                // ConnectAsync меняет ObservableCollection/свойства — только из UI-потока.
+                Dispatcher.UIThread.Post(() => _ = ConnectAsync());
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugLog.Write("Network change handling failed: " + ex.Message);
         }
     }
 
@@ -449,7 +532,15 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var url = NormalizeServerUrl(ServerUrl);
             ServerUrl = url;
-            _api = new ApiClient(url);
+
+            // Переиспользуем HTTP-клиент между попытками, чтобы не плодить сокеты.
+            if (_api == null || !string.Equals(_apiUrl, url, StringComparison.OrdinalIgnoreCase))
+            {
+                _api?.Dispose();
+                _api = new ApiClient(url);
+                _apiUrl = url;
+            }
+
             var initial = await _api.GetSnapshotAsync();
             if (initial == null)
             {
@@ -492,10 +583,35 @@ public sealed partial class MainViewModel : ObservableObject
                 try { await hub.DisposeAsync(); } catch { }
             }
             IsConnected = false;
-            ConnectionStatus = $"Ошибка: {ex.Message}";
+            ConnectionStatus = $"Ошибка: {DescribeConnectionError(ex)}";
             ClearAllData();
             return false;
         }
+    }
+
+    /// <summary>Понятный текст вместо «An error occurred while sending the request».</summary>
+    private static string DescribeConnectionError(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SocketException se)
+            {
+                return se.SocketErrorCode switch
+                {
+                    SocketError.ConnectionRefused => "сервер не слушает порт (соединение отклонено)",
+                    SocketError.HostNotFound or SocketError.NoData => "не удалось разрешить имя сервера (DNS)",
+                    SocketError.TimedOut => "таймаут — проверьте адрес, VPN и файрвол",
+                    SocketError.NetworkUnreachable or SocketError.HostUnreachable
+                        => "сеть недоступна — проверьте VPN и маршрут до сервера",
+                    _ => $"сетевая ошибка: {se.SocketErrorCode}",
+                };
+            }
+
+            if (e is TaskCanceledException or TimeoutException)
+                return "сервер не ответил вовремя — проверьте адрес, VPN и файрвол";
+        }
+
+        return ex.Message;
     }
 
     private void ApplySnapshot(SessionSnapshotDto snapshot)
@@ -1055,8 +1171,10 @@ public sealed partial class MainViewModel : ObservableObject
             SteerRightPercent = 0;
             TelemetryRateText = "—";
             TelemetryStatus = Telemetry.Points.Count == 0
-                ? "Нет данных — запустите агент (вкладка «Агент») и выберите пилота"
-                : "Данные не поступают (агент остановлен или ACC закрыт)";
+                ? (IsAgentRunning
+                    ? "Нет данных от агента — проверьте, что ACC запущен и выбран пилот"
+                    : "Нет данных — запустите агент (вкладка «Агент») и выберите пилота")
+                : "Данные не поступают — ACC закрыт или агент не может достучаться до сервера";
         }
         UpdateTelemetryStats();
     }
@@ -1280,6 +1398,11 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public void Shutdown()
     {
+        _shutdown = true;
+        try { NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged; } catch { }
+        try { if (_retryNow.CurrentCount == 0) _retryNow.Release(); } catch { }
+        try { _api?.Dispose(); } catch { }
+
         try
         {
             _embeddedAgent?.StopAsync(stopStaleProcesses: true).GetAwaiter().GetResult();
