@@ -54,7 +54,7 @@ public sealed partial class MainViewModel : ObservableObject
             Target: "nav", NavIndex: 0, PageIndex: 0),
         new TourStep(
             "Стинты",
-            "История и план отрезков гонки: кто, когда и сколько кругов проехал. Выберите стинт в таблице, чтобы поправить пилота и время, или нажмите «Новый стинт», чтобы добавить запись вручную.",
+            "История и план отрезков гонки: кто, когда и сколько кругов проехал. Выберите стинт в таблице, чтобы поправить его или удалить, либо нажмите «Новый стинт», чтобы добавить запись вручную.",
             Target: "nav", NavIndex: 1, PageIndex: 1),
         new TourStep(
             "Телеметрия",
@@ -104,11 +104,17 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _timeText = "—";
     [ObservableProperty] private string _ourDriverText = "—";
     [ObservableProperty] private string _serverUrl = "";
-    [ObservableProperty] private StintRow? _selectedStint;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStintSelected))]
+    private StintRow? _selectedStint;
     [ObservableProperty] private string _editDriver = "";
     [ObservableProperty] private string _editStart = "";
     [ObservableProperty] private string _editEnd = "";
     [ObservableProperty] private string _stintStatus = "";
+    [ObservableProperty] private bool _isDeleteConfirmVisible;
+
+    /// <summary>Есть ли выбранная строка — от этого зависит доступность кнопки «Удалить».</summary>
+    public bool IsStintSelected => SelectedStint != null;
     [ObservableProperty] private string _lastUpdate = "";
     [ObservableProperty] private string? _selectedSetupCar;
     [ObservableProperty] private string? _selectedSetupTrack;
@@ -229,6 +235,9 @@ public sealed partial class MainViewModel : ObservableObject
     public ICommand ConnectCommand { get; }
     public ICommand SaveStintCommand { get; }
     public ICommand NewStintCommand { get; }
+    public ICommand DeleteStintCommand { get; }
+    public ICommand ConfirmDeleteStintCommand { get; }
+    public ICommand CancelDeleteStintCommand { get; }
     public ICommand RefreshSetupsCommand { get; }
     public ICommand ShowSetupCommand { get; }
     public ICommand OpenSetupFolderCommand { get; }
@@ -258,6 +267,9 @@ public sealed partial class MainViewModel : ObservableObject
         ConnectCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ConnectAsync);
         SaveStintCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(SaveStintAsync);
         NewStintCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(StartNewStint);
+        DeleteStintCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(RequestDeleteStint);
+        ConfirmDeleteStintCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ConfirmDeleteStintAsync);
+        CancelDeleteStintCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(CancelDeleteStint);
         RefreshSetupsCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadSetupsAsync);
         ShowSetupCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ShowSetupAsync);
         OpenSetupFolderCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(OpenSetupFolderAsync);
@@ -741,9 +753,7 @@ public sealed partial class MainViewModel : ObservableObject
                 StartedAtUtc = s.StartedAt,
                 EndedAtUtc = s.EndedAt,
                 StartReal = s.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-                StartGame = s.StartSessionTime > TimeSpan.Zero ? FormatClock(s.StartSessionTime) : "—",
                 EndReal = s.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
-                EndGame = s.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
                 IsOpen = open,
                 Duration = FormatDuration(s.EndedAt ?? DateTime.UtcNow, s.StartedAt),
             });
@@ -761,7 +771,6 @@ public sealed partial class MainViewModel : ObservableObject
                 StartedAtUtc = snapshot.CurrentStint.StartedAt,
                 EndedAtUtc = snapshot.CurrentStint.EndedAt,
                 StartReal = snapshot.CurrentStint.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-                StartGame = FormatClock(snapshot.CurrentStint.StartSessionTime),
                 IsOpen = true,
                 Duration = FormatDuration(DateTime.UtcNow, snapshot.CurrentStint.StartedAt),
             });
@@ -771,7 +780,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (openStint != null) _latestOpenStartedAt = openStint.StartedAt;
 
         var fingerprint = string.Join('|', rows.Select(r =>
-            $"{r.StintId};{r.Ordinal};{r.Driver};{r.StartReal};{r.StartGame};{r.EndReal};{r.EndGame};{r.IsOpen}"));
+            $"{r.StintId};{r.Ordinal};{r.Driver};{r.StartReal};{r.EndReal};{r.IsOpen}"));
         if (fingerprint == _stintsFingerprint)
         {
             var openRow = Stints.FirstOrDefault(r => r.IsOpen);
@@ -1271,9 +1280,7 @@ public sealed partial class MainViewModel : ObservableObject
             StartedAtUtc = dto.StartedAt,
             EndedAtUtc = dto.EndedAt,
             StartReal = dto.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-            StartGame = dto.StartSessionTime > TimeSpan.Zero ? FormatClock(dto.StartSessionTime) : "—",
             EndReal = dto.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
-            EndGame = dto.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
             IsOpen = dto.EndedAt == null,
             LapNumber = dto.LapNumber,
             Duration = FormatDuration(dto.EndedAt ?? DateTime.UtcNow, dto.StartedAt),
@@ -1300,7 +1307,62 @@ public sealed partial class MainViewModel : ObservableObject
         EditDriver = "";
         EditStart = "";
         EditEnd = "";
+        IsDeleteConfirmVisible = false;
         StintStatus = "Новый стинт: укажите пилота, начало и конец";
+    }
+
+    private void RequestDeleteStint()
+    {
+        if (SelectedStint == null) return;
+
+        IsDeleteConfirmVisible = true;
+        StintStatus = $"Удалить стинт «{SelectedStint.Driver}»?";
+    }
+
+    private void CancelDeleteStint()
+    {
+        IsDeleteConfirmVisible = false;
+        StintStatus = "";
+    }
+
+    private async Task ConfirmDeleteStintAsync()
+    {
+        var row = SelectedStint;
+        IsDeleteConfirmVisible = false;
+
+        if (row == null) return;
+
+        if (_api == null)
+        {
+            StintStatus = "Нет подключения к серверу — нажмите «Подключить»";
+            return;
+        }
+
+        try
+        {
+            StintStatus = "Удаление…";
+            var (ok, error) = await _api.DeleteStintAsync(row.StintId);
+            if (!ok)
+            {
+                StintStatus = "Не удалось удалить стинт: " + (error ?? "неизвестная ошибка");
+                return;
+            }
+
+            var index = Stints.IndexOf(row);
+            Stints.Remove(row);
+            RenumberStints();
+
+            SelectedStint = Stints.Count == 0
+                ? null
+                : Stints[Math.Min(Math.Max(index, 0), Stints.Count - 1)];
+
+            StintStatus = $"Стинт удалён: {row.Driver}";
+            ConnectionStatus = "Стинт удалён";
+        }
+        catch (Exception ex)
+        {
+            StintStatus = "Не удалось удалить стинт: " + ex.Message;
+        }
     }
 
     /// <summary>Применяет ответ сервера к строке таблицы, чтобы изменения были видны сразу.</summary>
@@ -1341,6 +1403,7 @@ public sealed partial class MainViewModel : ObservableObject
         EditDriver = value?.Driver ?? "";
         EditStart = FormatEditTime(value?.StartedAtUtc);
         EditEnd = FormatEditTime(value?.EndedAtUtc);
+        IsDeleteConfirmVisible = false;
         StintStatus = "";
     }
 

@@ -44,6 +44,13 @@ public sealed class StintsController : ControllerBase
         return stint == null ? BadRequest(new { error = "Не удалось сохранить стинт" }) : Ok(stint);
     }
 
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteStint(int id, CancellationToken cancellationToken)
+    {
+        var deleted = await _sessionState.DeleteStintAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
+
     [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateStint(int id, [FromBody] UpdateStintRequest request,
         CancellationToken cancellationToken)

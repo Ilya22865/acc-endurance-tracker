@@ -108,6 +108,18 @@ public sealed class ApiClient : IDisposable
         return created != null ? (created, null) : (null, "сервер вернул пустой ответ");
     }
 
+    /// <summary>Удаляет стинт на сервере. Возвращает признак успеха и текст причины ошибки.</summary>
+    public async Task<(bool Ok, string? Error)> DeleteStintAsync(int id, CancellationToken ct = default)
+    {
+        using var resp = await Http.DeleteAsync($"{_baseUrl}/api/stints/{id}", ct);
+        if (resp.IsSuccessStatusCode) return (true, null);
+
+        var error = resp.StatusCode == System.Net.HttpStatusCode.NotFound
+            ? "стинт не найден на сервере"
+            : $"сервер вернул HTTP {(int)resp.StatusCode}";
+        return (false, error);
+    }
+
     public async Task<List<SetupCarDto>> GetSetupCarsAsync(CancellationToken ct = default)
         => await Http.GetFromJsonAsync<List<SetupCarDto>>($"{_baseUrl}/api/setups", ct) ?? new();
 

@@ -718,6 +718,60 @@ public sealed class SessionStateService
     }
 
     /// <summary>
+    /// Удаляет стинт из памяти и БД. Вместе со стинтом каскадно удаляются его
+    /// телеметрические сэмплы, а круги остаются в истории (StintId становится null).
+    /// </summary>
+    public async Task<bool> DeleteStintAsync(int id, CancellationToken ct = default)
+    {
+        if (id <= 0) return false;
+
+        var removedFromDb = false;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<EnduranceHubDbContext>();
+            var entity = await db.Stints.FirstOrDefaultAsync(s => s.Id == id, ct);
+            if (entity != null)
+            {
+                db.Stints.Remove(entity);
+                await db.SaveChangesAsync(ct);
+                removedFromDb = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete stint #{StintId} from database", id);
+            return false;
+        }
+
+        var removedFromMemory = false;
+        lock (_lock)
+        {
+            var target = _stints.FirstOrDefault(s => s.Id == id);
+            if (target != null)
+            {
+                _stints.Remove(target);
+                removedFromMemory = true;
+            }
+
+            // Если удалили живой стинт, он больше не должен закрываться/пересохраняться.
+            if (_currentStint != null && _currentStint.Id == id)
+            {
+                _currentStint = null;
+                _activeDriverName = "";
+                removedFromMemory = true;
+            }
+        }
+
+        // Запись могла ещё не попасть в БД (живой стинт), поэтому успехом считается
+        // удаление хотя бы из одного места — иначе отвечаем 404.
+        if (!removedFromDb && !removedFromMemory) return false;
+
+        _logger.LogInformation("Stint #{StintId} deleted", id);
+        return true;
+    }
+
+    /// <summary>
     /// Поднимает стинты последнего события из БД при старте сервера, чтобы история
     /// отображалась и её можно было редактировать, даже если сессия уже завершена.
     /// </summary>

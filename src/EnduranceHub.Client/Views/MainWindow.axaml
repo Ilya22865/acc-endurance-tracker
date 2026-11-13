@@ -376,10 +376,17 @@
               <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8">
                 <Button Content="Новый стинт" Command="{Binding NewStintCommand}"/>
                 <Button Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
+                <Button Content="Удалить" Command="{Binding DeleteStintCommand}" IsEnabled="{Binding IsStintSelected}"/>
               </StackPanel>
             </Grid>
             <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
                        Text="Выберите стинт в таблице, чтобы изменить его, или нажмите «Новый стинт», чтобы добавить запись в план."/>
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsDeleteConfirmVisible}">
+              <TextBlock Classes="secondary" VerticalAlignment="Center"
+                         Text="Удалить выбранный стинт? Действие нельзя отменить."/>
+              <Button Content="Удалить" Command="{Binding ConfirmDeleteStintCommand}" Classes="primary"/>
+              <Button Content="Отмена" Command="{Binding CancelDeleteStintCommand}" Classes="ghost"/>
+            </StackPanel>
             <TextBlock Text="{Binding StintStatus}" Classes="secondary" FontSize="11"
                        TextWrapping="Wrap" IsVisible="{Binding StintStatus, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
           </StackPanel>
@@ -387,30 +394,26 @@
         <Border Grid.Row="1" Classes="card">
           <DockPanel>
             <Border DockPanel.Dock="Top" Classes="thead">
-              <Grid ColumnDefinitions="140,50,110,110,110,110,110,60">
+              <Grid ColumnDefinitions="140,50,110,110,110,60">
                 <TextBlock Classes="label" Text="ПИЛОТ"/>
                 <TextBlock Grid.Column="1" Classes="label" Text="№"/>
-                <TextBlock Grid.Column="2" Classes="label" Text="СТАРТ (РЕАЛ)"/>
-                <TextBlock Grid.Column="3" Classes="label" Text="СТАРТ (ИГРА)"/>
-                <TextBlock Grid.Column="4" Classes="label" Text="КОНЕЦ (РЕАЛ)"/>
-                <TextBlock Grid.Column="5" Classes="label" Text="КОНЕЦ (ИГРА)"/>
-                <TextBlock Grid.Column="6" Classes="label" Text="ДЛИТЕЛЬНОСТЬ"/>
-                <TextBlock Grid.Column="7" Classes="label" Text="КРУГ"/>
+                <TextBlock Grid.Column="2" Classes="label" Text="СТАРТ"/>
+                <TextBlock Grid.Column="3" Classes="label" Text="КОНЕЦ"/>
+                <TextBlock Grid.Column="4" Classes="label" Text="ДЛИТЕЛЬНОСТЬ"/>
+                <TextBlock Grid.Column="5" Classes="label" Text="КРУГ"/>
               </Grid>
             </Border>
             <ListBox Classes="table" ItemsSource="{Binding Stints}" SelectedItem="{Binding SelectedStint}">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:StintRow">
                   <Border Classes="row compact" Padding="14,0">
-                    <Grid ColumnDefinitions="140,50,110,110,110,110,110,60" VerticalAlignment="Center">
+                    <Grid ColumnDefinitions="140,50,110,110,110,60" VerticalAlignment="Center">
                       <TextBlock Text="{Binding Driver}" FontWeight="SemiBold" Classes.open="{Binding IsOpen}"/>
                       <TextBlock Grid.Column="1" Classes="muted mono" Text="{Binding Ordinal}"/>
                       <TextBlock Grid.Column="2" Classes="secondary mono" Text="{Binding StartReal}"/>
-                      <TextBlock Grid.Column="3" Classes="secondary mono" Text="{Binding StartGame}"/>
-                      <TextBlock Grid.Column="4" Classes="secondary mono" Text="{Binding EndReal}"/>
-                      <TextBlock Grid.Column="5" Classes="secondary mono" Text="{Binding EndGame}"/>
-                      <TextBlock Grid.Column="6" Classes="mono" FontWeight="SemiBold" Text="{Binding Duration}"/>
-                      <TextBlock Grid.Column="7" Classes="secondary mono" Text="{Binding LapNumber}"/>
+                      <TextBlock Grid.Column="3" Classes="secondary mono" Text="{Binding EndReal}"/>
+                      <TextBlock Grid.Column="4" Classes="mono" FontWeight="SemiBold" Text="{Binding Duration}"/>
+                      <TextBlock Grid.Column="5" Classes="secondary mono" Text="{Binding LapNumber}"/>
                     </Grid>
                   </Border>
                 </DataTemplate>
