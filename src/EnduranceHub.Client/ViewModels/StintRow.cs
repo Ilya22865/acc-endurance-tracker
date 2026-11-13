@@ -7,7 +7,7 @@ public sealed partial class StintRow : ObservableObject
     public int StintId { get; set; }
     [ObservableProperty] private string? _driver;
     public int DriverIndex { get; set; }
-    public int Ordinal { get; set; }
+    [ObservableProperty] private int _ordinal;
     [ObservableProperty] private DateTime _startedAtUtc;
     [ObservableProperty] private DateTime? _endedAtUtc;
     [ObservableProperty] private string _startReal = "";

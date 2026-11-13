@@ -77,6 +77,37 @@ public sealed class ApiClient : IDisposable
         return updated != null ? (updated, null) : (null, "сервер вернул пустой ответ");
     }
 
+    /// <summary>
+    /// Добавляет стинт вручную в план. Возвращает созданную запись либо текст причины ошибки.
+    /// </summary>
+    public async Task<(StintDto? Stint, string? Error)> CreateStintAsync(string driver,
+        DateTime startedAtUtc, DateTime? endedAtUtc, CancellationToken ct = default)
+    {
+        using var resp = await Http.PostAsJsonAsync(
+            $"{_baseUrl}/api/stints",
+            new { driver, startedAt = startedAtUtc, endedAt = endedAtUtc },
+            ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var error = $"сервер вернул HTTP {(int)resp.StatusCode}";
+            try
+            {
+                var problem = await resp.Content.ReadFromJsonAsync<StintErrorDto>(cancellationToken: ct);
+                if (!string.IsNullOrWhiteSpace(problem?.Error)) error = problem.Error;
+            }
+            catch
+            {
+                // тело ответа не обязательно JSON — оставляем HTTP-код
+            }
+
+            return (null, error);
+        }
+
+        var created = await resp.Content.ReadFromJsonAsync<StintDto>(cancellationToken: ct);
+        return created != null ? (created, null) : (null, "сервер вернул пустой ответ");
+    }
+
     public async Task<List<SetupCarDto>> GetSetupCarsAsync(CancellationToken ct = default)
         => await Http.GetFromJsonAsync<List<SetupCarDto>>($"{_baseUrl}/api/setups", ct) ?? new();
 

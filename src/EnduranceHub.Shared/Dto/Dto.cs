@@ -120,6 +120,12 @@ public sealed class StintDto
     public StintDto Clone() => (StintDto)MemberwiseClone();
 }
 
+/// <summary>Текст ошибки, который сервер возвращает при неудачном создании/изменении стинта.</summary>
+public sealed class StintErrorDto
+{
+    public string Error { get; set; } = "";
+}
+
 public sealed class TelemetrySampleDto
 {
     public string DriverId { get; set; } = "";

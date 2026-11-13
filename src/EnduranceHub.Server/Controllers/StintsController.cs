@@ -27,6 +27,23 @@ public sealed class StintsController : ControllerBase
         return stint != null ? Ok(stint) : NoContent();
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateStint([FromBody] CreateStintRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Driver))
+            return BadRequest(new { error = "Укажите имя пилота" });
+        if (request.StartedAt == default)
+            return BadRequest(new { error = "Укажите время начала" });
+        // Открытый ручной стинт сервер принял бы за текущий (GetCurrentStint), поэтому конец обязателен.
+        if (request.EndedAt == null)
+            return BadRequest(new { error = "Для нового стинта укажите время конца" });
+
+        var stint = await _sessionState.CreateStintDetailsAsync(
+            request.Driver, request.StartedAt, request.EndedAt, cancellationToken);
+        return stint == null ? BadRequest(new { error = "Не удалось сохранить стинт" }) : Ok(stint);
+    }
+
     [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateStint(int id, [FromBody] UpdateStintRequest request,
         CancellationToken cancellationToken)
@@ -44,6 +61,16 @@ public sealed class StintsController : ControllerBase
         /// <summary>Время начала стинта в UTC.</summary>
         public DateTime? StartedAt { get; set; }
         /// <summary>Время конца стинта в UTC (null — не менять).</summary>
+        public DateTime? EndedAt { get; set; }
+    }
+
+    public sealed class CreateStintRequest
+    {
+        /// <summary>Имя пилота.</summary>
+        public string? Driver { get; set; }
+        /// <summary>Время начала стинта в UTC.</summary>
+        public DateTime StartedAt { get; set; }
+        /// <summary>Время конца стинта в UTC (для новой записи обязательно).</summary>
         public DateTime? EndedAt { get; set; }
     }
 }

@@ -373,8 +373,13 @@
               <TextBox Grid.Column="3" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditStart}"/>
               <TextBlock Grid.Column="4" Text="Конец" Classes="muted" VerticalAlignment="Center"/>
               <TextBox Grid.Column="5" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditEnd}"/>
-              <Button Grid.Column="6" Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
+              <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8">
+                <Button Content="Новый стинт" Command="{Binding NewStintCommand}"/>
+                <Button Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
+              </StackPanel>
             </Grid>
+            <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap"
+                       Text="Выберите стинт в таблице, чтобы изменить его, или нажмите «Новый стинт», чтобы добавить запись в план."/>
             <TextBlock Text="{Binding StintStatus}" Classes="secondary" FontSize="11"
                        TextWrapping="Wrap" IsVisible="{Binding StintStatus, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
           </StackPanel>

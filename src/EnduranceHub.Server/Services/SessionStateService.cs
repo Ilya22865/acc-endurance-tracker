@@ -684,6 +684,40 @@ public sealed class SessionStateService
     }
 
     /// <summary>
+    /// Добавляет стинт вручную (план стинтов), не трогая текущий живой стинт.
+    /// Возвращает null, если пилот или время не заданы либо запись не сохранилась.
+    /// </summary>
+    public async Task<StintDto?> CreateStintDetailsAsync(string? driver, DateTime startedAtUtc,
+        DateTime? endedAtUtc, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(driver) || startedAtUtc == default) return null;
+
+        var stint = new StintDto
+        {
+            Driver = driver.Trim(),
+            // У ручной записи нет индекса пилота из игры.
+            DriverIndex = -1,
+            StartedAt = EnsureUtc(startedAtUtc),
+            EndedAt = endedAtUtc.HasValue ? EnsureUtc(endedAtUtc.Value) : null,
+        };
+
+        await PersistStintAsync(stint);
+        if (stint.Id == 0) return null;
+
+        lock (_lock)
+        {
+            // Держим список в хронологическом порядке, чтобы план выглядел как план.
+            var index = _stints.FindIndex(s => s.StartedAt > stint.StartedAt);
+            if (index < 0) _stints.Add(stint);
+            else _stints.Insert(index, stint);
+        }
+
+        _logger.LogInformation("Stint #{StintId} added manually ({Driver}, {Start}→{End})",
+            stint.Id, stint.Driver, stint.StartedAt, stint.EndedAt);
+        return stint.Clone();
+    }
+
+    /// <summary>
     /// Поднимает стинты последнего события из БД при старте сервера, чтобы история
     /// отображалась и её можно было редактировать, даже если сессия уже завершена.
     /// </summary>
@@ -732,6 +766,10 @@ public sealed class SessionStateService
                         LapNumber = s.LapNumber,
                     });
                 }
+
+                // Ручные стинты, добавленные после перезапуска, должны попасть в то же событие,
+                // а не создавать новое с пустым названием трассы.
+                _dbEventId = eventId.Value;
             }
 
             _logger.LogInformation("Loaded {Count} stint(s) from latest event #{EventId}",

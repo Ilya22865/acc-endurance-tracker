@@ -54,7 +54,7 @@ public sealed partial class MainViewModel : ObservableObject
             Target: "nav", NavIndex: 0, PageIndex: 0),
         new TourStep(
             "Стинты",
-            "История отрезков гонки: кто, когда и сколько кругов проехал. Пилота и время начала/конца стинта можно поправить в полях над таблицей.",
+            "История и план отрезков гонки: кто, когда и сколько кругов проехал. Выберите стинт в таблице, чтобы поправить пилота и время, или нажмите «Новый стинт», чтобы добавить запись вручную.",
             Target: "nav", NavIndex: 1, PageIndex: 1),
         new TourStep(
             "Телеметрия",
@@ -228,6 +228,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ICommand ConnectCommand { get; }
     public ICommand SaveStintCommand { get; }
+    public ICommand NewStintCommand { get; }
     public ICommand RefreshSetupsCommand { get; }
     public ICommand ShowSetupCommand { get; }
     public ICommand OpenSetupFolderCommand { get; }
@@ -256,6 +257,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         ConnectCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ConnectAsync);
         SaveStintCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(SaveStintAsync);
+        NewStintCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(StartNewStint);
         RefreshSetupsCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(LoadSetupsAsync);
         ShowSetupCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ShowSetupAsync);
         OpenSetupFolderCommand = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(OpenSetupFolderAsync);
@@ -1139,11 +1141,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task SaveStintAsync()
     {
         var row = SelectedStint;
-        if (row == null)
-        {
-            StintStatus = "Сначала выберите стинт в таблице";
-            return;
-        }
+        var isNew = row == null;
 
         if (_api == null)
         {
@@ -1170,26 +1168,76 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        // В полях ввода только время, поэтому дату берём от начала выбранного стинта.
-        var baseDate = row.StartedAtUtc.ToLocalTime().Date;
+        if (isNew && !endTime.HasValue)
+        {
+            StintStatus = "Для нового стинта укажите время конца";
+            return;
+        }
 
-        var startedAtUtc = DateTime.SpecifyKind(baseDate + startTime.Value, DateTimeKind.Local).ToUniversalTime();
+        // В полях ввода только время. Для существующего стинта дату берём от него самого,
+        // для нового — от последнего стинта в плане (с учётом перехода через полночь).
+        DateTime baseDate;
+        DateTime? previousEndLocal = null;
+
+        if (isNew)
+        {
+            var last = Stints.OrderBy(r => r.StartedAtUtc).LastOrDefault();
+            var lastDate = last?.StartedAtUtc.ToLocalTime().Date;
+
+            // План строят начиная с сегодняшнего дня: вчерашняя история не должна
+            // утягивать новые записи в прошлое, а уже запланированное будущее — сохраняется.
+            baseDate = lastDate.HasValue && lastDate.Value > DateTime.Today ? lastDate.Value : DateTime.Today;
+
+            if (last != null)
+                previousEndLocal = (last.EndedAtUtc ?? last.StartedAtUtc).ToLocalTime();
+        }
+        else
+        {
+            baseDate = row!.StartedAtUtc.ToLocalTime().Date;
+        }
+
+        var startLocal = baseDate + startTime.Value;
+        if (isNew && previousEndLocal.HasValue && startLocal <= previousEndLocal.Value)
+            startLocal = startLocal.AddDays(1);
+
+        var startedAtUtc = DateTime.SpecifyKind(startLocal, DateTimeKind.Local).ToUniversalTime();
 
         DateTime? endedAtUtc = null;
         if (endTime.HasValue)
         {
-            var endLocal = baseDate + endTime.Value;
+            var endLocal = startLocal.Date + endTime.Value;
             // стинт может заканчиваться уже после полуночи
-            if (endLocal <= baseDate + startTime.Value)
+            if (endLocal <= startLocal)
                 endLocal = endLocal.AddDays(1);
             endedAtUtc = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
         }
 
         try
         {
+            if (isNew)
+            {
+                StintStatus = "Добавление…";
+                var (created, createError) = await _api.CreateStintAsync(
+                    EditDriver.Trim(),
+                    startedAtUtc,
+                    endedAtUtc);
+
+                if (created == null)
+                {
+                    StintStatus = "Не удалось добавить стинт: " + (createError ?? "неизвестная ошибка");
+                    return;
+                }
+
+                AddStintRow(created);
+                StintStatus = $"Добавлено: {created.Driver} · {FormatEditTime(created.StartedAt)}–" +
+                              (created.EndedAt.HasValue ? FormatEditTime(created.EndedAt) : "…");
+                ConnectionStatus = "Стинт добавлен в план";
+                return;
+            }
+
             StintStatus = "Сохранение…";
             var (updated, error) = await _api.PatchStintAsync(
-                row.StintId,
+                row!.StintId,
                 EditDriver.Trim(),
                 startedAtUtc,
                 endedAtUtc);
@@ -1210,6 +1258,49 @@ public sealed partial class MainViewModel : ObservableObject
             // сетевая ошибка раньше уходила необработанной из команды
             StintStatus = "Не удалось сохранить стинт: " + ex.Message;
         }
+    }
+
+    /// <summary>Добавляет созданный стинт в таблицу на своё место по времени и выбирает его.</summary>
+    private void AddStintRow(StintDto dto)
+    {
+        var row = new StintRow
+        {
+            StintId = dto.Id,
+            Driver = dto.Driver,
+            DriverIndex = dto.DriverIndex,
+            StartedAtUtc = dto.StartedAt,
+            EndedAtUtc = dto.EndedAt,
+            StartReal = dto.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
+            StartGame = dto.StartSessionTime > TimeSpan.Zero ? FormatClock(dto.StartSessionTime) : "—",
+            EndReal = dto.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
+            EndGame = dto.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
+            IsOpen = dto.EndedAt == null,
+            LapNumber = dto.LapNumber,
+            Duration = FormatDuration(dto.EndedAt ?? DateTime.UtcNow, dto.StartedAt),
+        };
+
+        var index = 0;
+        while (index < Stints.Count && Stints[index].StartedAtUtc <= dto.StartedAt)
+            index++;
+
+        Stints.Insert(index, row);
+        RenumberStints();
+        SelectedStint = row;
+    }
+
+    private void RenumberStints()
+    {
+        for (var i = 0; i < Stints.Count; i++)
+            Stints[i].Ordinal = i + 1;
+    }
+
+    private void StartNewStint()
+    {
+        SelectedStint = null;
+        EditDriver = "";
+        EditStart = "";
+        EditEnd = "";
+        StintStatus = "Новый стинт: укажите пилота, начало и конец";
     }
 
     /// <summary>Применяет ответ сервера к строке таблицы, чтобы изменения были видны сразу.</summary>
