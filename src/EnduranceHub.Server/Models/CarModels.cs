@@ -69,4 +69,9 @@ public static class CarModels
 
     public static string GetModelName(byte modelType)
         => Map.TryGetValue(modelType, out var name) ? name : $"Unknown ({modelType})";
+
+    /// <summary>Название модели, если она есть в справочнике. Для неизвестных типов возвращает false,
+    /// чтобы интерфейс показал номер машины, а не «Unknown (37)».</summary>
+    public static bool TryGetModelName(byte modelType, out string name)
+        => Map.TryGetValue(modelType, out name!);
 }

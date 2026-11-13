@@ -268,6 +268,7 @@ public sealed class SessionStateService
                 var car = new CarInfo
                 {
                     CarIndex = cached.CarIndex,
+                    HasDetails = true,
                     CarModelType = cached.CarModelType,
                     TeamName = cached.TeamName,
                     RaceNumber = cached.RaceNumber,
@@ -312,8 +313,10 @@ public sealed class SessionStateService
 
         if (!string.IsNullOrWhiteSpace(car.TeamName))
             state.TeamName = car.TeamName;
-        if (car.CarModelType != 0)
-            state.CarModelName = CarModels.GetModelName(car.CarModelType);
+        // CarModelType = 0 — валидная модель (Porsche 991 GT3 R), поэтому ориентируемся
+        // на факт получения EntryListCar, а не на «ненулевой» тип.
+        if (car.HasDetails)
+            state.CarModelName = CarModels.TryGetModelName(car.CarModelType, out var modelName) ? modelName : "";
         if (car.RaceNumber > 0)
             state.RaceNumber = car.RaceNumber;
 
@@ -469,7 +472,8 @@ public sealed class SessionStateService
                 if (_entryList.TryGetValue(update.CarIndex, out var carInfo))
                 {
                     teamName = carInfo.TeamName;
-                    carModel = CarModels.GetModelName(carInfo.CarModelType);
+                    if (carInfo.HasDetails && CarModels.TryGetModelName(carInfo.CarModelType, out var entryModel))
+                        carModel = entryModel;
                     raceNumber = carInfo.RaceNumber;
                     modelType = carInfo.CarModelType;
                 }
@@ -509,6 +513,7 @@ public sealed class SessionStateService
             state.CumulativeSpline = timeline.CumNow;
             state.HeadingX = timeline.HeadingX;
             state.HeadingY = timeline.HeadingY;
+            state.HeadingStale = timeline.HeadingStale;
 
             if (_entryList.TryGetValue(update.CarIndex, out var car))
             {
@@ -521,8 +526,8 @@ public sealed class SessionStateService
                     state.Driver = currentDriver!.ShortName;
                 if (!string.IsNullOrWhiteSpace(car.TeamName))
                     state.TeamName = car.TeamName;
-                if (car.CarModelType != 0)
-                    state.CarModelName = CarModels.GetModelName(car.CarModelType);
+                if (car.HasDetails)
+                    state.CarModelName = CarModels.TryGetModelName(car.CarModelType, out var modelName) ? modelName : "";
                 if (car.RaceNumber > 0)
                     state.RaceNumber = car.RaceNumber;
             }
@@ -1440,6 +1445,13 @@ internal sealed class CarTimeline
     public double HeadingX { get; private set; }
     public double HeadingY { get; private set; }
 
+    /// <summary>
+    /// Курс устарел: машина почти стоит (или ещё не проехала достаточно метров).
+    /// У стоящей машины направление по движению определить нельзя, поэтому радар
+    /// не должен поворачивать её на случайный старый угол — рисуем вдоль нашей оси.
+    /// </summary>
+    public bool HeadingStale { get; private set; } = true;
+
     public void Feed(int laps, double spline, long ticks)
     {
         if (!_has)
@@ -1531,10 +1543,13 @@ internal sealed class CarTimeline
         var dx = x - _lastX;
         var dy = y - _lastY;
         var dist = Math.Sqrt(dx * dx + dy * dy);
+        // Стоящая машина: направление по движению неизвестно, даже если старая точка
+        // ещё не накопила 1.5 м. Иначе в пит-лейне машины «смотрят» кто куда.
+        if (kmh < 8) HeadingStale = true;
         if (dist < 1.5) return;                       // копим смещение
         _lastX = x;
         _lastY = y;
-        if (dist > 60 || kmh < 8) return;             // телепорт или почти стоим
+        if (dist > 60) return;                        // телепорт (боксы, рестарт)
 
         var nx = dx / dist;
         var ny = dy / dist;
@@ -1542,6 +1557,7 @@ internal sealed class CarTimeline
         {
             HeadingX = nx;
             HeadingY = ny;
+            HeadingStale = false;
             return;
         }
 
@@ -1551,5 +1567,6 @@ internal sealed class CarTimeline
         if (len < 1e-6) return;
         HeadingX = hx / len;
         HeadingY = hy / len;
+        HeadingStale = false;
     }
 }

@@ -8,6 +8,10 @@ public sealed partial class StandingsRow : ObservableObject
 {
     public int CarIndex { get; init; }
 
+    /// <summary>Реальное название команды из ACC (может быть пустым). Не показывается напрямую:
+    /// из него и модели/номера каждый раз собирается <see cref="TeamName"/>.</summary>
+    public string RawTeamName { get; set; } = "";
+
     [ObservableProperty] private int _position;
     [ObservableProperty] private int _raceNumber;
     [ObservableProperty] private string _teamName = "";

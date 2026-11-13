@@ -42,6 +42,9 @@ public sealed class CarStateDto
     public double HeadingX { get; set; }
     public double HeadingY { get; set; }
 
+    /// <summary>Курс устарел (машина стоит): для радара её нельзя поворачивать на старый угол.</summary>
+    public bool HeadingStale { get; set; }
+
     public bool InPit => Location == CarLocation.Pitlane || Location == CarLocation.PitEntry || Location == CarLocation.PitExit;
 
     // --- отрывы (только в гонке; считаются сервером по времени прохождения одних и тех же точек трассы) ---

@@ -226,11 +226,16 @@ public sealed partial class MainViewModel
             row.RaceNumber = c.RaceNumber;
 
         // В онлайне ACC иногда присылает пустое название команды. Показываем хотя бы
-        // модель машины, чтобы строка не выглядела «битой».
+        // модель машины или номер, чтобы строка не выглядела «битой».
         if (!string.IsNullOrWhiteSpace(c.TeamName))
-            row.TeamName = c.TeamName;
-        else if (string.IsNullOrWhiteSpace(row.TeamName))
-            row.TeamName = !string.IsNullOrWhiteSpace(c.CarModelName)
+            row.RawTeamName = c.TeamName.Trim();
+
+        // Подпись пересобирается на каждом обновлении, а не запоминается навсегда:
+        // раньше «Car 1004» из первого снимка оставался в строке даже после того,
+        // как приходили настоящие модель и номер.
+        row.TeamName = !string.IsNullOrWhiteSpace(row.RawTeamName)
+            ? row.RawTeamName
+            : !string.IsNullOrWhiteSpace(c.CarModelName)
                 ? c.CarModelName
                 : row.RaceNumber > 0 ? $"#{row.RaceNumber}" : $"Car {c.CarIndex}";
         row.Driver = c.Driver;
@@ -468,9 +473,10 @@ public sealed partial class MainViewModel
             var x = dx * rightX + dy * rightY;
             var y = dx * hx + dy * hy;
 
-            // поворот соперника относительно нас
+            // поворот соперника относительно нас. У стоящей машины курса нет:
+            // старый угол после въезда в пит-лейн выглядел как «машины в разные стороны».
             double angle = 0;
-            if (c.HeadingX != 0 || c.HeadingY != 0)
+            if (!c.HeadingStale && (c.HeadingX != 0 || c.HeadingY != 0))
             {
                 var lx = c.HeadingX * rightX + c.HeadingY * rightY;
                 var ly = c.HeadingX * hx + c.HeadingY * hy;

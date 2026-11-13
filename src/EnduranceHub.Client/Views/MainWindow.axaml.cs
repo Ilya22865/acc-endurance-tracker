@@ -446,12 +446,12 @@ public partial class MainWindow : Window
             points.Add(new Point(minX == maxX ? w / 2 : p.X * scale + offsetX,
                                  minY == maxY ? h / 2 : p.Y * scale + offsetY));
 
-        // полотно трассы: широкая подложка и более светлая «асфальтовая» линия
+        // полотно трассы: тонкая подложка и более светлая «асфальтовая» линия
         _mapCanvas.Children.Add(new Polyline
         {
             Points = points,
             Stroke = new SolidColorBrush(Palette.Surface3),
-            StrokeThickness = 16,
+            StrokeThickness = 10,
             StrokeJoin = PenLineJoin.Round,
         });
         var inner = new Points();
@@ -460,28 +460,41 @@ public partial class MainWindow : Window
         {
             Points = inner,
             Stroke = new SolidColorBrush(Palette.LineStrong),
-            StrokeThickness = 10,
+            StrokeThickness = 6,
             StrokeJoin = PenLineJoin.Round,
         });
 
         var start = new Ellipse
         {
-            Width = 12,
-            Height = 12,
+            Width = 10,
+            Height = 10,
             Fill = new SolidColorBrush(Palette.Text),
             Stroke = new SolidColorBrush(Palette.Bg),
             StrokeThickness = 2,
         };
-        Canvas.SetLeft(start, points[0].X - 6);
-        Canvas.SetTop(start, points[0].Y - 6);
+        Canvas.SetLeft(start, points[0].X - 5);
+        Canvas.SetTop(start, points[0].Y - 5);
         _mapCanvas.Children.Add(start);
 
         // сначала чужие машины, нашу — последней, чтобы она была сверху
-        foreach (var dot in vm.CurrentDots.OrderBy(d => d.IsOurCar ? 1 : 0))
+        var dots = vm.CurrentDots.OrderBy(d => d.IsOurCar ? 1 : 0).ToList();
+
+        foreach (var dot in dots)
         {
             var p = new Point(dot.X * scale + offsetX, dot.Y * scale + offsetY);
             var isOur = dot.IsOurCar;
-            var r = isOur ? 9.0 : 7.0;
+            var r = isOur ? 11.0 : 9.0;
+
+            // тёмный ореол отделяет точку от линии трассы, иначе машины «тонут» в контуре
+            var halo = new Ellipse
+            {
+                Width = (r + 2.5) * 2,
+                Height = (r + 2.5) * 2,
+                Fill = new SolidColorBrush(Palette.Bg),
+            };
+            Canvas.SetLeft(halo, p.X - r - 2.5);
+            Canvas.SetTop(halo, p.Y - r - 2.5);
+            _mapCanvas.Children.Add(halo);
 
             var car = new Ellipse
             {
@@ -489,23 +502,31 @@ public partial class MainWindow : Window
                 Height = r * 2,
                 Fill = new SolidColorBrush(isOur ? Palette.Own : Palette.Surface3),
                 Stroke = new SolidColorBrush(isOur ? Palette.Accent : Palette.Text3),
-                StrokeThickness = isOur ? 2 : 1,
+                StrokeThickness = isOur ? 2 : 1.5,
             };
             Canvas.SetLeft(car, p.X - r);
             Canvas.SetTop(car, p.Y - r);
             _mapCanvas.Children.Add(car);
+        }
+
+        // номера рисуем отдельным проходом, чтобы соседняя машина их не перекрывала
+        foreach (var dot in dots)
+        {
+            var p = new Point(dot.X * scale + offsetX, dot.Y * scale + offsetY);
+            var isOur = dot.IsOurCar;
+            var r = isOur ? 11.0 : 9.0;
 
             var label = new TextBlock
             {
                 Text = dot.RaceNumber.ToString(),
-                FontSize = isOur ? 11 : 9,
+                FontSize = isOur ? 12 : 10,
                 FontWeight = FontWeight.Bold,
                 Foreground = new SolidColorBrush(isOur ? Palette.OnOwn : Palette.Text),
                 Width = r * 2 + 8,
                 TextAlignment = TextAlignment.Center,
             };
             Canvas.SetLeft(label, p.X - r - 4);
-            Canvas.SetTop(label, p.Y - (isOur ? 7.5 : 6.5));
+            Canvas.SetTop(label, p.Y - (isOur ? 8.5 : 7.5));
             _mapCanvas.Children.Add(label);
         }
     }

@@ -94,6 +94,14 @@ public sealed class DriverInfo
 public sealed class CarInfo
 {
     public ushort CarIndex { get; init; }
+
+    /// <summary>
+    /// true, когда пришёл EntryListCar с реальными данными (модель, команда, пилоты).
+    /// Индекс из EntryList сам по себе ещё ничего не значит: CarModelType = 0 —
+    /// это настоящая модель (Porsche 991 GT3 R), а не «данных нет».
+    /// </summary>
+    public bool HasDetails { get; set; }
+
     public byte CarModelType { get; set; }
     public string TeamName { get; set; } = "";
     public int RaceNumber { get; set; }

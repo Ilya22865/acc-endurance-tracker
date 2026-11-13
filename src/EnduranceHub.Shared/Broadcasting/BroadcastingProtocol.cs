@@ -260,6 +260,7 @@ public sealed class BroadcastingProtocol : IDisposable
                     });
                 }
 
+                car.HasDetails = true;
                 OnEntrylistUpdate?.Invoke(car);
                 break;
             }
