@@ -427,8 +427,7 @@ public sealed partial class MainViewModel
     private void UpdateRadar(SessionSnapshotDto snapshot)
     {
         var cars = snapshot.Cars;
-        var our = cars.FirstOrDefault(c => c.IsOurCar)
-                  ?? (OurCarNumber > 0 ? cars.FirstOrDefault(c => c.RaceNumber == OurCarNumber) : null);
+        var our = cars.FirstOrDefault(c => c.IsOurCar);
 
         if (our == null)
         {
@@ -438,7 +437,7 @@ public sealed partial class MainViewModel
             RadarNear.Clear();
             SpotterText = "—";
             SpotterDanger = false;
-            RadarStatus = "Ваша машина не определена: задайте OurCarRaceNumber на сервере или номер в «Настройки»";
+            RadarStatus = "Ваша машина не определена: задайте Acc:OurCarRaceNumber на сервере";
             RadarUpdated?.Invoke();
             return;
         }

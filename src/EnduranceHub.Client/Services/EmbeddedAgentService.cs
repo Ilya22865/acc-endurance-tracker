@@ -25,7 +25,7 @@ public sealed class EmbeddedAgentService : IDisposable
         _logger = logger;
     }
 
-    public async Task<bool> StartAsync(string agentExePath, string serverUrl, int driverIndex, string? workingDirectory = null, bool useFakeData = false)
+    public async Task<bool> StartAsync(string agentExePath, string serverUrl, int driverIndex, string? workingDirectory = null)
     {
         if (_isRunning)
         {
@@ -45,11 +45,9 @@ public sealed class EmbeddedAgentService : IDisposable
             // Они продолжают отправлять телеметрию и дублируют данные.
             await StopStaleAgentProcessesAsync();
 
-            AddLog($"Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}, FakeData={useFakeData}");
+            AddLog($"Запуск Agent: DriverIndex={driverIndex}, Server={serverUrl}");
 
             var args = $"--server {serverUrl} --driver-index {driverIndex} --parent-pid {Environment.ProcessId}";
-            if (useFakeData)
-                args += " --fake";
 
             var startInfo = new ProcessStartInfo
             {

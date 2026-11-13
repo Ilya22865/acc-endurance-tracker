@@ -32,14 +32,17 @@ public sealed class StintsController : ControllerBase
     {
         // изменения применяются в памяти И сохраняются в БД
         var stint = _sessionState.UpdateStintDetails(
-            id, request.Notes, request.PlannedFuelLiters, request.PlannedLaps);
+            id, request.Driver, request.StartedAt, request.EndedAt);
         return stint == null ? NotFound() : Ok(stint);
     }
 
     public sealed class UpdateStintRequest
     {
-        public string? Notes { get; set; }
-        public double? PlannedFuelLiters { get; set; }
-        public int? PlannedLaps { get; set; }
+        /// <summary>Имя пилота (пустое значение не меняет поле).</summary>
+        public string? Driver { get; set; }
+        /// <summary>Время начала стинта в UTC.</summary>
+        public DateTime? StartedAt { get; set; }
+        /// <summary>Время конца стинта в UTC (null — не менять).</summary>
+        public DateTime? EndedAt { get; set; }
     }
 }

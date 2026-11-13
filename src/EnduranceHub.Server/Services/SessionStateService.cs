@@ -599,27 +599,36 @@ public sealed class SessionStateService
     }
 
     /// <summary>
-    /// Меняет заметки/план стинта и сохраняет изменения в БД
+    /// Меняет пилота и время начала/конца стинта и сохраняет изменения в БД
     /// (раньше PATCH менял только память, и после перезапуска сервера всё терялось).
     /// </summary>
-    public StintDto? UpdateStintDetails(int id, string? notes, double? plannedFuelLiters, int? plannedLaps)
+    public StintDto? UpdateStintDetails(int id, string? driver, DateTime? startedAtUtc, DateTime? endedAtUtc)
     {
         StintDto target;
         StintDto result;
         lock (_lock)
         {
-            var found = id == 0 ? null : _stints.LastOrDefault(s => s.Id == id);
+            var found = _stints.LastOrDefault(s => s.Id == id);
+            // Текущий стинт может ещё не получить Id от БД — тогда правим его напрямую.
+            if (found == null && id == 0) found = _currentStint;
             if (found == null) return null;
             target = found;
-            if (notes != null) target.Notes = notes;
-            if (plannedFuelLiters.HasValue) target.PlannedFuelLiters = plannedFuelLiters;
-            if (plannedLaps.HasValue) target.PlannedLaps = plannedLaps;
+            if (!string.IsNullOrWhiteSpace(driver)) target.Driver = driver.Trim();
+            if (startedAtUtc.HasValue) target.StartedAt = EnsureUtc(startedAtUtc.Value);
+            if (endedAtUtc.HasValue) target.EndedAt = EnsureUtc(endedAtUtc.Value);
             result = target.Clone();
         }
 
         _ = PersistStintAsync(target);
         return result;
     }
+
+    private static DateTime EnsureUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+    };
 
     private async Task PersistStintAsync(StintDto stint)
     {
@@ -689,9 +698,6 @@ public sealed class SessionStateService
                     StartedAt = snap.StartedAt,
                     EndedAt = snap.EndedAt,
                     LapNumber = snap.LapNumber,
-                    Notes = snap.Notes,
-                    PlannedFuelLiters = snap.PlannedFuelLiters,
-                    PlannedLaps = snap.PlannedLaps,
                 };
                 db.Stints.Add(entity);
                 await db.SaveChangesAsync();
@@ -704,11 +710,11 @@ public sealed class SessionStateService
                 var entity = await db.Stints.FirstOrDefaultAsync(s => s.Id == snap.Id);
                 if (entity != null)
                 {
+                    entity.DriverId = driver.Id;
+                    entity.DriverIndex = snap.DriverIndex;
+                    entity.StartedAt = snap.StartedAt;
                     entity.EndedAt = snap.EndedAt;
                     entity.LapNumber = snap.LapNumber;
-                    entity.Notes = snap.Notes;
-                    entity.PlannedFuelLiters = snap.PlannedFuelLiters;
-                    entity.PlannedLaps = snap.PlannedLaps;
                     await db.SaveChangesAsync();
                     _logger.LogInformation("Stint #{StintId} saved ({Driver}, {Start}→{End})",
                         entity.Id, snap.Driver, snap.StartedAt, snap.EndedAt);

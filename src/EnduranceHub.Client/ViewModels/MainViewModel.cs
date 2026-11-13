@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -53,7 +54,7 @@ public sealed partial class MainViewModel : ObservableObject
             Target: "nav", NavIndex: 0, PageIndex: 0),
         new TourStep(
             "Стинты",
-            "История отрезков гонки: кто, сколько кругов проехал, сколько топлива потратил и когда была смена пилота. Здесь же сохраняются заметки по стинту.",
+            "История отрезков гонки: кто, когда и сколько кругов проехал. Пилота и время начала/конца стинта можно поправить в полях над таблицей.",
             Target: "nav", NavIndex: 1, PageIndex: 1),
         new TourStep(
             "Телеметрия",
@@ -81,7 +82,7 @@ public sealed partial class MainViewModel : ObservableObject
             Target: "nav", NavIndex: 7, PageIndex: 7),
         new TourStep(
             "Настройки",
-            "Номер вашей машины, зеркало радара, экспорт данных и обновления. Здесь же можно пройти этот тур заново.",
+            "Зеркало радара, экспорт данных и обновления. Здесь же можно пройти этот тур заново.",
             Target: "nav", NavIndex: 8, PageIndex: 8),
         new TourStep(
             "Подключение к серверу",
@@ -104,9 +105,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _ourDriverText = "—";
     [ObservableProperty] private string _serverUrl = "";
     [ObservableProperty] private StintRow? _selectedStint;
-    [ObservableProperty] private string? _editNotes;
-    [ObservableProperty] private double? _editFuel;
-    [ObservableProperty] private int? _editLaps;
+    [ObservableProperty] private string _editDriver = "";
+    [ObservableProperty] private string _editStart = "";
+    [ObservableProperty] private string _editEnd = "";
     [ObservableProperty] private string _lastUpdate = "";
     [ObservableProperty] private string? _selectedSetupCar;
     [ObservableProperty] private string? _selectedSetupTrack;
@@ -138,7 +139,6 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _serverStatus = "Остановлен";
     [ObservableProperty] private string _agentStatus = "Остановлен";
     [ObservableProperty] private int _selectedDriverIndex;
-    [ObservableProperty] private bool _agentUseFakeData;
 
     // Пути к встроенным Server и Agent фиксированы относительно папки приложения.
     public string ServerExePath => EmbeddedServicePaths.ServerExePath;
@@ -206,8 +206,6 @@ public sealed partial class MainViewModel : ObservableObject
     public string TourNextText => IsLastTourStep ? "Готово" : "Далее";
 
     // Settings
-    [ObservableProperty] private int _ourCarNumber;
-
     public event Action? MapUpdated;
     private List<(double X, double Y)> _lastOutline = new();
     private List<CarMapDot> _lastDots = new();
@@ -342,10 +340,8 @@ public sealed partial class MainViewModel : ObservableObject
             // Settings service
             _settingsService = new Services.SettingsService();
             var settings = _settingsService.LoadSettings();
-            OurCarNumber = settings.OurCarNumber;
             RadarMirror = settings.RadarMirror;
             RadarRangeIndex = Math.Clamp(settings.RadarRangeIndex, 0, 2);
-            AgentUseFakeData = settings.AgentUseFakeData;
             _hasCompletedTour = settings.HasCompletedTour;
             _settingsLoaded = true;
 
@@ -393,7 +389,7 @@ public sealed partial class MainViewModel : ObservableObject
             AgentLogLines.Add("Путь к EnduranceHub.Agent.exe не указан");
             return;
         }
-        await (_embeddedAgent?.StartAsync(AgentExePath, NormalizeServerUrl(ServerUrl), SelectedDriverIndex, useFakeData: AgentUseFakeData) ?? Task.CompletedTask);
+        await (_embeddedAgent?.StartAsync(AgentExePath, NormalizeServerUrl(ServerUrl), SelectedDriverIndex) ?? Task.CompletedTask);
     }
 
     private async Task StopAgentAsync()
@@ -689,15 +685,14 @@ public sealed partial class MainViewModel : ObservableObject
                 DriverIndex = s.DriverIndex,
                 Ordinal = rows.Count + 1,
                 LapNumber = s.LapNumber,
+                StartedAtUtc = s.StartedAt,
+                EndedAtUtc = s.EndedAt,
                 StartReal = s.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
                 StartGame = FormatClock(s.StartSessionTime),
                 EndReal = s.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
                 EndGame = s.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
                 IsOpen = open,
                 Duration = FormatDuration(s.EndedAt ?? DateTime.UtcNow, s.StartedAt),
-                Notes = s.Notes,
-                PlannedFuelLiters = s.PlannedFuelLiters,
-                PlannedLaps = s.PlannedLaps,
             });
         }
 
@@ -710,13 +705,12 @@ public sealed partial class MainViewModel : ObservableObject
                 DriverIndex = snapshot.CurrentStint.DriverIndex,
                 Ordinal = rows.Count + 1,
                 LapNumber = snapshot.CurrentStint.LapNumber,
+                StartedAtUtc = snapshot.CurrentStint.StartedAt,
+                EndedAtUtc = snapshot.CurrentStint.EndedAt,
                 StartReal = snapshot.CurrentStint.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
                 StartGame = FormatClock(snapshot.CurrentStint.StartSessionTime),
                 IsOpen = true,
                 Duration = FormatDuration(DateTime.UtcNow, snapshot.CurrentStint.StartedAt),
-                Notes = snapshot.CurrentStint.Notes,
-                PlannedFuelLiters = snapshot.CurrentStint.PlannedFuelLiters,
-                PlannedLaps = snapshot.CurrentStint.PlannedLaps,
             });
         }
 
@@ -724,7 +718,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (openStint != null) _latestOpenStartedAt = openStint.StartedAt;
 
         var fingerprint = string.Join('|', rows.Select(r =>
-            $"{r.StintId};{r.Ordinal};{r.StartReal};{r.StartGame};{r.EndReal};{r.EndGame};{r.IsOpen};{r.Notes};{r.PlannedFuelLiters};{r.PlannedLaps}"));
+            $"{r.StintId};{r.Ordinal};{r.Driver};{r.StartReal};{r.StartGame};{r.EndReal};{r.EndGame};{r.IsOpen}"));
         if (fingerprint == _stintsFingerprint)
         {
             var openRow = Stints.FirstOrDefault(r => r.IsOpen);
@@ -1094,10 +1088,38 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task SaveStintAsync()
     {
         if (_api == null || SelectedStint == null) return;
+
+        if (!TryParseStintTime(EditStart, out var startTime) ||
+            !TryParseStintTime(EditEnd, out var endTime))
+        {
+            ConnectionStatus = "Время указывается в формате HH:mm";
+            return;
+        }
+
+        // В полях ввода только время, поэтому дату берём от начала выбранного стинта.
+        var baseDate = SelectedStint.StartedAtUtc.ToLocalTime().Date;
+
+        DateTime? startedAtUtc = startTime.HasValue
+            ? DateTime.SpecifyKind(baseDate + startTime.Value, DateTimeKind.Local).ToUniversalTime()
+            : null;
+
+        DateTime? endedAtUtc = null;
+        if (endTime.HasValue)
+        {
+            var endLocal = baseDate + endTime.Value;
+            // стинт может заканчиваться уже после полуночи
+            if (startTime.HasValue && endLocal <= baseDate + startTime.Value)
+                endLocal = endLocal.AddDays(1);
+            endedAtUtc = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
+        }
+
         try
         {
             var ok = await _api.PatchStintAsync(
-                SelectedStint.StintId, EditNotes, EditFuel, EditLaps);
+                SelectedStint.StintId,
+                string.IsNullOrWhiteSpace(EditDriver) ? null : EditDriver.Trim(),
+                startedAtUtc,
+                endedAtUtc);
             ConnectionStatus = ok ? "Стинт обновлён" : "Не удалось обновить стинт";
         }
         catch (Exception ex)
@@ -1107,11 +1129,31 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Разбирает время в формате HH:mm (пустая строка — поле не задано).</summary>
+    private static bool TryParseStintTime(string? text, out TimeSpan? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(text)) return true;
+
+        if (TimeSpan.TryParseExact(text.Trim(), new[] { @"hh\:mm", @"h\:mm" },
+                CultureInfo.InvariantCulture, out var parsed)
+            && parsed >= TimeSpan.Zero && parsed < TimeSpan.FromDays(1))
+        {
+            value = parsed;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string FormatEditTime(DateTime? utc)
+        => utc.HasValue ? utc.Value.ToLocalTime().ToString("HH:mm") : "";
+
     partial void OnSelectedStintChanged(StintRow? value)
     {
-        EditNotes = value?.Notes;
-        EditFuel = value?.PlannedFuelLiters;
-        EditLaps = value?.PlannedLaps;
+        EditDriver = value?.Driver ?? "";
+        EditStart = FormatEditTime(value?.StartedAtUtc);
+        EditEnd = FormatEditTime(value?.EndedAtUtc);
     }
 
     partial void OnSelectedPageIndexChanged(int value)
@@ -1429,15 +1471,9 @@ public sealed partial class MainViewModel : ObservableObject
         if (!_settingsLoaded) return;
         _settingsService?.SaveSettings(new Services.AppSettings
         {
-            OurCarNumber = OurCarNumber,
             RadarMirror = RadarMirror,
             RadarRangeIndex = RadarRangeIndex,
-            AgentUseFakeData = AgentUseFakeData,
             HasCompletedTour = _hasCompletedTour,
         });
     }
-
-    partial void OnOurCarNumberChanged(int value) => SaveSettings();
-
-    partial void OnAgentUseFakeDataChanged(bool value) => SaveSettings();
 }

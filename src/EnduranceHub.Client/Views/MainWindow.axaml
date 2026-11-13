@@ -364,13 +364,13 @@
       <!-- ============ 1 · СТИНТЫ ============ -->
       <Grid IsVisible="{Binding IsPage1}" RowDefinitions="Auto,*" RowSpacing="16">
         <Border Classes="card" Padding="16,12">
-          <Grid ColumnDefinitions="Auto,*,Auto,90,Auto,70,Auto" ColumnSpacing="12">
-            <TextBlock Text="Заметки" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" PlaceholderText="заметки по стинту" Text="{Binding EditNotes}"/>
-            <TextBlock Grid.Column="2" Text="Топливо, л" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="3" Text="{Binding EditFuel}"/>
-            <TextBlock Grid.Column="4" Text="Круги" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="5" Text="{Binding EditLaps}"/>
+          <Grid ColumnDefinitions="Auto,*,Auto,90,Auto,90,Auto" ColumnSpacing="12">
+            <TextBlock Text="Пилот" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="1" PlaceholderText="имя пилота" Text="{Binding EditDriver}"/>
+            <TextBlock Grid.Column="2" Text="Начало" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="3" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditStart}"/>
+            <TextBlock Grid.Column="4" Text="Конец" Classes="muted" VerticalAlignment="Center"/>
+            <TextBox Grid.Column="5" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditEnd}"/>
             <Button Grid.Column="6" Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
           </Grid>
         </Border>
@@ -746,7 +746,7 @@
           </Grid>
         </Border>
         <Border Grid.Row="1" Classes="card" Padding="16,12">
-          <Grid ColumnDefinitions="Auto,300,Auto,Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="6">
+          <Grid ColumnDefinitions="Auto,300,Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="6">
             <TextBlock Text="Я за рулём как" Classes="muted" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1" ItemsSource="{Binding TeamDrivers}" SelectedItem="{Binding SelectedTeamDriver}" HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>
@@ -756,11 +756,10 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <Button Grid.Column="2" Content="Обновить список" Command="{Binding RefreshTeamDriversCommand}"/>
-            <CheckBox Grid.Column="3" Content="Тестовые данные (без ACC)" IsChecked="{Binding AgentUseFakeData}" VerticalAlignment="Center"/>
-            <TextBlock Grid.Column="4" Classes="muted" FontSize="11.5" VerticalAlignment="Center" HorizontalAlignment="Right"
+            <TextBlock Grid.Column="3" Classes="muted" FontSize="11.5" VerticalAlignment="Center" HorizontalAlignment="Right"
                        TextWrapping="Wrap" MaxWidth="360"
                        Text="Агент запускают на ПК того, кто ведёт машину. При смене пилота остановите агента на старом ПК и запустите на новом — стинт разделится автоматически. Адрес сервера берётся из шапки."/>
-            <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Classes="muted" FontSize="11.5"
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Classes="muted" FontSize="11.5"
                        Text="Если телеметрия не идёт, откройте %LOCALAPPDATA%\EnduranceHub\logs\agent.log — там видны причина выхода и ответы сервера."/>
           </Grid>
         </Border>
@@ -781,17 +780,6 @@
       <ScrollViewer IsVisible="{Binding IsPage8}" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,0,20">
           <TextBlock Classes="h1" Text="Настройки"/>
-
-          <Border Classes="card" Padding="20">
-            <StackPanel Spacing="12">
-              <TextBlock Classes="label" Text="НАША МАШИНА"/>
-              <TextBlock Classes="secondary" TextWrapping="Wrap" Text="Номер машины, которая подсвечивается в таблице, на карте и радаре. Если на сервере задан Acc:OurCarRaceNumber, он главнее."/>
-              <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Classes="muted" Text="Номер" VerticalAlignment="Center"/>
-                <TextBox Width="100" Text="{Binding OurCarNumber}" PlaceholderText="например 911"/>
-              </StackPanel>
-            </StackPanel>
-          </Border>
 
           <Border Classes="card" Padding="20">
             <StackPanel Spacing="12">

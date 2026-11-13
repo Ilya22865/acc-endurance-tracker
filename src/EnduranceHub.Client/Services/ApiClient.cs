@@ -53,12 +53,12 @@ public sealed class ApiClient : IDisposable
     public async Task<List<StintDto>> GetStintsAsync(CancellationToken ct = default)
         => await Http.GetFromJsonAsync<List<StintDto>>($"{_baseUrl}/api/stints", ct) ?? new();
 
-    public async Task<bool> PatchStintAsync(int id, string? notes, double? fuelLiters, int? laps,
+    public async Task<bool> PatchStintAsync(int id, string? driver, DateTime? startedAtUtc, DateTime? endedAtUtc,
         CancellationToken ct = default)
     {
         var resp = await Http.PatchAsJsonAsync(
             $"{_baseUrl}/api/stints/{id}",
-            new { notes, plannedFuelLiters = fuelLiters, plannedLaps = laps },
+            new { driver, startedAt = startedAtUtc, endedAt = endedAtUtc },
             ct);
         return resp.IsSuccessStatusCode;
     }

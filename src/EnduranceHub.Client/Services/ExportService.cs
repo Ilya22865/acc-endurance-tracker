@@ -110,7 +110,7 @@ public sealed class ExportService
         var sb = new StringBuilder();
 
         sb.AppendLine("Stint ID,Driver,Driver Index,Lap Number,Started At (UTC),Ended At (UTC)," +
-                     "Start Session Time,End Session Time,Duration (s),Notes,Planned Fuel (L),Planned Laps,Is Open");
+                     "Start Session Time,End Session Time,Duration (s),Is Open");
 
         var allStints = new List<StintDto>(stints);
         if (currentStint != null && !allStints.Any(s => s.Id == currentStint.Id))
@@ -132,9 +132,6 @@ public sealed class ExportService
                          $"{stint.StartSessionTime}," +
                          $"{(stint.EndSessionTime.HasValue ? stint.EndSessionTime.Value.ToString() : "")}," +
                          $"{duration.TotalSeconds:F1}," +
-                         $"{EscapeCsv(stint.Notes ?? "")}," +
-                         $"{(stint.PlannedFuelLiters.HasValue ? stint.PlannedFuelLiters.Value.ToString("F2", CultureInfo.InvariantCulture) : "")}," +
-                         $"{stint.PlannedLaps}," +
                          $"{isOpen}");
         }
 

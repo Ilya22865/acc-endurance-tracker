@@ -8,6 +8,8 @@ public sealed partial class StintRow : ObservableObject
     public string? Driver { get; set; }
     public int DriverIndex { get; set; }
     public int Ordinal { get; set; }
+    public DateTime StartedAtUtc { get; set; }
+    public DateTime? EndedAtUtc { get; set; }
     public string StartReal { get; set; } = "";
     public string StartGame { get; set; } = "";
     public string EndReal { get; set; } = "";
@@ -16,7 +18,4 @@ public sealed partial class StintRow : ObservableObject
     public bool IsOpen { get; set; }
 
     [ObservableProperty] private string _duration = "";
-    [ObservableProperty] private string? _notes;
-    [ObservableProperty] private double? _plannedFuelLiters;
-    [ObservableProperty] private int? _plannedLaps;
 }

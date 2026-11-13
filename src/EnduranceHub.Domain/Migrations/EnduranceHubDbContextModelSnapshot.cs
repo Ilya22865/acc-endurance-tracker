@@ -277,15 +277,6 @@ namespace EnduranceHub.Domain.Migrations
                     b.Property<int>("LapNumber")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("PlannedFuelLiters")
-                        .HasColumnType("double precision");
-
-                    b.Property<int?>("PlannedLaps")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 

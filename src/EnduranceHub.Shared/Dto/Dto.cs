@@ -116,9 +116,6 @@ public sealed class StintDto
     public TimeSpan StartSessionTime { get; set; }
     public TimeSpan? EndSessionTime { get; set; }
     public int LapNumber { get; set; }
-    public string? Notes { get; set; }
-    public double? PlannedFuelLiters { get; set; }
-    public int? PlannedLaps { get; set; }
 
     public StintDto Clone() => (StintDto)MemberwiseClone();
 }

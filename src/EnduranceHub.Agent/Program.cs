@@ -117,9 +117,7 @@ if (driverIndex < 0)
 
 driverId = $"{options.AgentId}:{driverIndex}";
 
-using IAccDataSource source = options.UseFakeDataSource
-    ? new FakeAccDataSource()
-    : new AccSharedMemoryReader();
+using IAccDataSource source = new AccSharedMemoryReader();
 source.Start();
 
 Console.Write($"Регистрирую пилота (DriverIndex={driverIndex})... ");
@@ -248,7 +246,6 @@ static AgentOptions ParseArgs(string[] args)
             case "--interval-ms": options.ReadIntervalMs = int.Parse(args[++i]); break;
             case "--send-interval-ms": options.SendIntervalMs = int.Parse(args[++i]); break;
             case "--parent-pid": options.ParentPid = int.Parse(args[++i]); break;
-            case "--fake": options.UseFakeDataSource = true; break;
         }
     }
     return options;
@@ -263,7 +260,6 @@ sealed class AgentOptions
     // 50 мс (≈20 пачек/с) вместо 250 мс: клиент получает данные почти непрерывно,
     // поэтому графики и радар не «дёргаются» раз в четверть секунды.
     public int SendIntervalMs { get; set; } = 50;
-    public bool UseFakeDataSource { get; set; } = false;
     public int ParentPid { get; set; } =
         int.TryParse(
             Environment.GetEnvironmentVariable("ENDURANCEHUB_PARENT_PID")

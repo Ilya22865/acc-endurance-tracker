@@ -19,10 +19,6 @@ public class Stint
     public int LapNumber { get; set; }
     public TimeSpan? Duration => EndedAt.HasValue ? EndedAt.Value - StartedAt : null;
 
-    public string? Notes { get; set; }
-    public double? PlannedFuelLiters { get; set; }
-    public int? PlannedLaps { get; set; }
-
     public ICollection<Lap> Laps { get; set; } = new List<Lap>();
     public ICollection<TelemetrySample> TelemetrySamples { get; set; } = new List<TelemetrySample>();
 }
