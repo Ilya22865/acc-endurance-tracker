@@ -179,10 +179,17 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _currentVersionText = "";
     [ObservableProperty] private string _latestVersionText = "";
     [ObservableProperty] private string _updateStatus = "Нажмите кнопку для проверки обновлений";
-    [ObservableProperty] private bool _isUpdateAvailable;
-    [ObservableProperty] private bool _isCheckingUpdate;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanInstallUpdate))]
+    private bool _isUpdateAvailable;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanInstallUpdate))]
+    private bool _isCheckingUpdate;
     [ObservableProperty] private int _updateProgress;
     private object? _pendingUpdate;
+
+    /// <summary>Кнопка «Установить» активна только когда обновление найдено и ничего не выполняется.</summary>
+    public bool CanInstallUpdate => IsUpdateAvailable && !IsCheckingUpdate;
 
     // Обучение при первом запуске
     [ObservableProperty] private bool _isTourVisible;
@@ -405,27 +412,70 @@ public sealed partial class MainViewModel : ObservableObject
         if (_updateService == null) return;
 
         IsCheckingUpdate = true;
+        try
+        {
+            await CheckForUpdatesCoreAsync();
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    private async Task CheckForUpdatesCoreAsync()
+    {
+        if (_updateService == null) return;
+
         IsUpdateAvailable = false;
         _pendingUpdate = null;
 
         var result = await _updateService.CheckForUpdatesAsync();
 
+        // Другая операция обновления уже идёт — не сбрасываем найденное ранее обновление.
+        if (result.Busy)
+            return;
+
         CurrentVersionText = result.CurrentVersion;
         LatestVersionText = result.LatestVersion;
         IsUpdateAvailable = result.IsUpdateAvailable;
         _pendingUpdate = result.UpdateInfo;
-
-        IsCheckingUpdate = false;
     }
 
     private async Task InstallUpdateAsync()
     {
         if (_updateService == null || _pendingUpdate == null) return;
 
-        var success = await _updateService.DownloadAndApplyUpdateAsync(_pendingUpdate);
-        if (!success)
+        IsCheckingUpdate = true;
+        UpdateProgress = 0;
+        try
         {
-            UpdateStatus = "Не удалось установить обновление";
+            // Статус выставляет сам сервис, в том числе «обновление уже выполняется».
+            await _updateService.DownloadAndApplyUpdateAsync(_pendingUpdate);
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    /// <summary>
+    /// Автоматическая проверка и установка при старте. Использует тот же сервис,
+    /// что и кнопки в интерфейсе, поэтому две операции Velopack не конкурируют.
+    /// </summary>
+    public async Task AutoUpdateAsync()
+    {
+        if (_updateService == null || !_updateService.IsVelopackInstalled) return;
+
+        IsCheckingUpdate = true;
+        try
+        {
+            await CheckForUpdatesCoreAsync();
+            if (IsUpdateAvailable)
+                await InstallUpdateAsync();
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
         }
     }
 

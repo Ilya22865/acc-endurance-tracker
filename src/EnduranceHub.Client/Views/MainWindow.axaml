@@ -817,7 +817,7 @@
               </Grid>
               <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button Content="Проверить обновления" Command="{Binding CheckForUpdatesCommand}" Classes="primary" IsEnabled="{Binding !IsCheckingUpdate}"/>
-                <Button Content="Установить" Command="{Binding InstallUpdateCommand}" IsEnabled="{Binding IsUpdateAvailable}"/>
+                <Button Content="Установить" Command="{Binding InstallUpdateCommand}" IsEnabled="{Binding CanInstallUpdate}"/>
                 <ProgressBar Value="{Binding UpdateProgress}" Maximum="100" Width="200" Height="6"
                              IsVisible="{Binding IsCheckingUpdate}" VerticalAlignment="Center"/>
               </StackPanel>

@@ -28,12 +28,13 @@ public partial class App : Application
             // Не оставляем Server/Agent работать после закрытия клиента.
             desktop.Exit += (_, _) => viewModel.Shutdown();
 
-            // Автоматическое обновление в фоне (только для Velopack установок)
+            // Автоматическое обновление в фоне (только для Velopack установок).
+            // Идёт через тот же экземпляр сервиса, что и ручные кнопки в «Настройках».
             mainWindow.Opened += async (_, _) =>
             {
                 try
                 {
-                    await Services.UpdateService.CheckAndApplyAsync();
+                    await viewModel.AutoUpdateAsync();
                 }
                 catch (Exception ex)
                 {
