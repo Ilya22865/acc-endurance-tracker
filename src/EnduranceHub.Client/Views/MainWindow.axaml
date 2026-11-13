@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:EnduranceHub.Client.ViewModels"
+        xmlns:conv="using:Avalonia.Data.Converters"
         x:Class="EnduranceHub.Client.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="EnduranceHub"
@@ -364,15 +365,19 @@
       <!-- ============ 1 · СТИНТЫ ============ -->
       <Grid IsVisible="{Binding IsPage1}" RowDefinitions="Auto,*" RowSpacing="16">
         <Border Classes="card" Padding="16,12">
-          <Grid ColumnDefinitions="Auto,*,Auto,90,Auto,90,Auto" ColumnSpacing="12">
-            <TextBlock Text="Пилот" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" PlaceholderText="имя пилота" Text="{Binding EditDriver}"/>
-            <TextBlock Grid.Column="2" Text="Начало" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="3" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditStart}"/>
-            <TextBlock Grid.Column="4" Text="Конец" Classes="muted" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="5" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditEnd}"/>
-            <Button Grid.Column="6" Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
-          </Grid>
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="Auto,*,Auto,90,Auto,90,Auto" ColumnSpacing="12">
+              <TextBlock Text="Пилот" Classes="muted" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="1" PlaceholderText="имя пилота" Text="{Binding EditDriver}"/>
+              <TextBlock Grid.Column="2" Text="Начало" Classes="muted" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="3" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditStart}"/>
+              <TextBlock Grid.Column="4" Text="Конец" Classes="muted" VerticalAlignment="Center"/>
+              <TextBox Grid.Column="5" PlaceholderText="HH:mm" MaxLength="5" Text="{Binding EditEnd}"/>
+              <Button Grid.Column="6" Content="Сохранить" Command="{Binding SaveStintCommand}" Classes="primary"/>
+            </Grid>
+            <TextBlock Text="{Binding StintStatus}" Classes="secondary" FontSize="11"
+                       TextWrapping="Wrap" IsVisible="{Binding StintStatus, Converter={x:Static conv:StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
         </Border>
         <Border Grid.Row="1" Classes="card">
           <DockPanel>

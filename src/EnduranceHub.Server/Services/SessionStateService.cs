@@ -599,28 +599,148 @@ public sealed class SessionStateService
     }
 
     /// <summary>
-    /// Меняет пилота и время начала/конца стинта и сохраняет изменения в БД
-    /// (раньше PATCH менял только память, и после перезапуска сервера всё терялось).
+    /// Меняет пилота и время начала/конца стинта и сохраняет изменения в БД.
+    /// Если стинта нет в памяти (например, после перезапуска сервера), строка обновляется
+    /// напрямую в БД — раньше такой PATCH возвращал 404, и сохранение «не работало».
     /// </summary>
-    public StintDto? UpdateStintDetails(int id, string? driver, DateTime? startedAtUtc, DateTime? endedAtUtc)
+    public async Task<StintDto?> UpdateStintDetailsAsync(int id, string? driver, DateTime? startedAtUtc,
+        DateTime? endedAtUtc, CancellationToken ct = default)
     {
-        StintDto target;
-        StintDto result;
+        StintDto? target;
         lock (_lock)
         {
-            var found = _stints.LastOrDefault(s => s.Id == id);
+            target = _stints.LastOrDefault(s => s.Id == id);
             // Текущий стинт может ещё не получить Id от БД — тогда правим его напрямую.
-            if (found == null && id == 0) found = _currentStint;
-            if (found == null) return null;
-            target = found;
-            if (!string.IsNullOrWhiteSpace(driver)) target.Driver = driver.Trim();
-            if (startedAtUtc.HasValue) target.StartedAt = EnsureUtc(startedAtUtc.Value);
-            if (endedAtUtc.HasValue) target.EndedAt = EnsureUtc(endedAtUtc.Value);
-            result = target.Clone();
+            if (target == null && id == 0) target = _currentStint;
+            if (target != null)
+            {
+                if (!string.IsNullOrWhiteSpace(driver)) target.Driver = driver.Trim();
+                if (startedAtUtc.HasValue) target.StartedAt = EnsureUtc(startedAtUtc.Value);
+                if (endedAtUtc.HasValue) target.EndedAt = EnsureUtc(endedAtUtc.Value);
+            }
         }
 
-        _ = PersistStintAsync(target);
-        return result;
+        if (target != null)
+        {
+            await PersistStintAsync(target);
+            return target.Clone();
+        }
+
+        if (id <= 0) return null;
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<EnduranceHubDbContext>();
+            var entity = await db.Stints
+                .Include(s => s.Driver)
+                .FirstOrDefaultAsync(s => s.Id == id, ct);
+            if (entity == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(driver))
+            {
+                var name = driver.Trim();
+                var driverEntity = await db.Drivers.FirstOrDefaultAsync(d => d.ShortName == name, ct);
+                if (driverEntity == null)
+                {
+                    driverEntity = new Domain.Entities.Driver
+                    {
+                        ShortName = name,
+                        FirstName = name,
+                        LastName = "",
+                        AccDriverIndex = entity.DriverIndex,
+                    };
+                    db.Drivers.Add(driverEntity);
+                    await db.SaveChangesAsync(ct);
+                }
+
+                entity.DriverId = driverEntity.Id;
+                entity.Driver = driverEntity;
+            }
+
+            if (startedAtUtc.HasValue) entity.StartedAt = EnsureUtc(startedAtUtc.Value);
+            if (endedAtUtc.HasValue) entity.EndedAt = EnsureUtc(endedAtUtc.Value);
+            await db.SaveChangesAsync(ct);
+
+            _logger.LogInformation("Stint #{StintId} saved directly to DB ({Driver}, {Start}→{End})",
+                entity.Id, entity.Driver?.ShortName ?? "", entity.StartedAt, entity.EndedAt);
+
+            return new StintDto
+            {
+                Id = entity.Id,
+                Driver = entity.Driver?.ShortName ?? "",
+                DriverId = entity.DriverId,
+                DriverIndex = entity.DriverIndex,
+                StartedAt = entity.StartedAt,
+                EndedAt = entity.EndedAt,
+                LapNumber = entity.LapNumber,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update stint #{StintId} in database", id);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Поднимает стинты последнего события из БД при старте сервера, чтобы история
+    /// отображалась и её можно было редактировать, даже если сессия уже завершена.
+    /// </summary>
+    public async Task LoadLatestStintHistoryAsync(CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            if (_isSessionActive || _stints.Count > 0) return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<EnduranceHubDbContext>();
+
+            var eventId = await db.Events
+                .Where(e => e.Stints.Any())
+                .OrderByDescending(e => e.StartedAt)
+                .ThenByDescending(e => e.Id)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefaultAsync(ct);
+            if (eventId == null) return;
+
+            var rows = await db.Stints
+                .AsNoTracking()
+                .Include(s => s.Driver)
+                .Where(s => s.EventId == eventId.Value)
+                .OrderBy(s => s.StartedAt)
+                .ThenBy(s => s.Id)
+                .ToListAsync(ct);
+            if (rows.Count == 0) return;
+
+            lock (_lock)
+            {
+                if (_isSessionActive || _stints.Count > 0) return;
+                foreach (var s in rows)
+                {
+                    _stints.Add(new StintDto
+                    {
+                        Id = s.Id,
+                        Driver = s.Driver?.ShortName ?? "",
+                        DriverId = s.DriverId,
+                        DriverIndex = s.DriverIndex,
+                        StartedAt = s.StartedAt,
+                        EndedAt = s.EndedAt,
+                        LapNumber = s.LapNumber,
+                    });
+                }
+            }
+
+            _logger.LogInformation("Loaded {Count} stint(s) from latest event #{EventId}",
+                rows.Count, eventId.Value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load stint history from database");
+        }
     }
 
     private static DateTime EnsureUtc(DateTime value) => value.Kind switch
@@ -652,28 +772,6 @@ public sealed class SessionStateService
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<EnduranceHubDbContext>();
 
-            if (eventId == null)
-            {
-                var evType = Enum.TryParse<Domain.Entities.SessionType>(sessionTypeName, out var parsed)
-                             && Enum.IsDefined(parsed)
-                    ? parsed
-                    : Domain.Entities.SessionType.Race;
-
-                var ev = new Domain.Entities.Event
-                {
-                    Name = eventName,
-                    TrackName = eventTrack,
-                    SessionIndex = sessionIndex,
-                    SessionType = evType,
-                    StartedAt = DateTime.UtcNow,
-                };
-                db.Events.Add(ev);
-                await db.SaveChangesAsync();
-                eventId = ev.Id;
-                lock (_lock) { _dbEventId = eventId; }
-                _logger.LogInformation("Event #{Id} created ({Name}/{Track})", ev.Id, ev.Name, ev.TrackName);
-            }
-
             var driver = await db.Drivers.FirstOrDefaultAsync(d => d.ShortName == snap.Driver);
             if (driver == null)
             {
@@ -690,6 +788,28 @@ public sealed class SessionStateService
 
             if (snap.Id == 0)
             {
+                if (eventId == null)
+                {
+                    var evType = Enum.TryParse<Domain.Entities.SessionType>(sessionTypeName, out var parsed)
+                                 && Enum.IsDefined(parsed)
+                        ? parsed
+                        : Domain.Entities.SessionType.Race;
+
+                    var ev = new Domain.Entities.Event
+                    {
+                        Name = eventName,
+                        TrackName = eventTrack,
+                        SessionIndex = sessionIndex,
+                        SessionType = evType,
+                        StartedAt = DateTime.UtcNow,
+                    };
+                    db.Events.Add(ev);
+                    await db.SaveChangesAsync();
+                    eventId = ev.Id;
+                    lock (_lock) { _dbEventId = eventId; }
+                    _logger.LogInformation("Event #{Id} created ({Name}/{Track})", ev.Id, ev.Name, ev.TrackName);
+                }
+
                 var entity = new Domain.Entities.Stint
                 {
                     EventId = eventId.Value,

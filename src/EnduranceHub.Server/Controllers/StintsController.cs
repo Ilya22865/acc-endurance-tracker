@@ -28,11 +28,12 @@ public sealed class StintsController : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    public IActionResult UpdateStint(int id, [FromBody] UpdateStintRequest request)
+    public async Task<IActionResult> UpdateStint(int id, [FromBody] UpdateStintRequest request,
+        CancellationToken cancellationToken)
     {
-        // изменения применяются в памяти И сохраняются в БД
-        var stint = _sessionState.UpdateStintDetails(
-            id, request.Driver, request.StartedAt, request.EndedAt);
+        // Стинт может отсутствовать в памяти после перезапуска сервера — сервис обновит строку в БД.
+        var stint = await _sessionState.UpdateStintDetailsAsync(
+            id, request.Driver, request.StartedAt, request.EndedAt, cancellationToken);
         return stint == null ? NotFound() : Ok(stint);
     }
 

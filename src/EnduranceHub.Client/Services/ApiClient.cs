@@ -53,14 +53,28 @@ public sealed class ApiClient : IDisposable
     public async Task<List<StintDto>> GetStintsAsync(CancellationToken ct = default)
         => await Http.GetFromJsonAsync<List<StintDto>>($"{_baseUrl}/api/stints", ct) ?? new();
 
-    public async Task<bool> PatchStintAsync(int id, string? driver, DateTime? startedAtUtc, DateTime? endedAtUtc,
-        CancellationToken ct = default)
+    /// <summary>
+    /// Сохраняет изменения стинта и возвращает обновлённую запись с сервера.
+    /// При ошибке возвращает null и текст причины, чтобы UI мог показать её пользователю.
+    /// </summary>
+    public async Task<(StintDto? Stint, string? Error)> PatchStintAsync(int id, string? driver,
+        DateTime? startedAtUtc, DateTime? endedAtUtc, CancellationToken ct = default)
     {
-        var resp = await Http.PatchAsJsonAsync(
+        using var resp = await Http.PatchAsJsonAsync(
             $"{_baseUrl}/api/stints/{id}",
             new { driver, startedAt = startedAtUtc, endedAt = endedAtUtc },
             ct);
-        return resp.IsSuccessStatusCode;
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var error = resp.StatusCode == System.Net.HttpStatusCode.NotFound
+                ? "стинт не найден на сервере"
+                : $"сервер вернул HTTP {(int)resp.StatusCode}";
+            return (null, error);
+        }
+
+        var updated = await resp.Content.ReadFromJsonAsync<StintDto>(cancellationToken: ct);
+        return updated != null ? (updated, null) : (null, "сервер вернул пустой ответ");
     }
 
     public async Task<List<SetupCarDto>> GetSetupCarsAsync(CancellationToken ct = default)

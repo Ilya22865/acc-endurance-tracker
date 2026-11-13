@@ -108,6 +108,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _editDriver = "";
     [ObservableProperty] private string _editStart = "";
     [ObservableProperty] private string _editEnd = "";
+    [ObservableProperty] private string _stintStatus = "";
     [ObservableProperty] private string _lastUpdate = "";
     [ObservableProperty] private string? _selectedSetupCar;
     [ObservableProperty] private string? _selectedSetupTrack;
@@ -688,7 +689,7 @@ public sealed partial class MainViewModel : ObservableObject
                 StartedAtUtc = s.StartedAt,
                 EndedAtUtc = s.EndedAt,
                 StartReal = s.StartedAt.ToLocalTime().ToString("HH:mm:ss"),
-                StartGame = FormatClock(s.StartSessionTime),
+                StartGame = s.StartSessionTime > TimeSpan.Zero ? FormatClock(s.StartSessionTime) : "—",
                 EndReal = s.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—",
                 EndGame = s.EndSessionTime is TimeSpan endGame ? FormatClock(endGame) : "—",
                 IsOpen = open,
@@ -1087,46 +1088,91 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task SaveStintAsync()
     {
-        if (_api == null || SelectedStint == null) return;
+        var row = SelectedStint;
+        if (row == null)
+        {
+            StintStatus = "Сначала выберите стинт в таблице";
+            return;
+        }
+
+        if (_api == null)
+        {
+            StintStatus = "Нет подключения к серверу — нажмите «Подключить»";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(EditDriver))
+        {
+            StintStatus = "Укажите имя пилота";
+            return;
+        }
 
         if (!TryParseStintTime(EditStart, out var startTime) ||
             !TryParseStintTime(EditEnd, out var endTime))
         {
-            ConnectionStatus = "Время указывается в формате HH:mm";
+            StintStatus = "Время указывается в формате HH:mm";
+            return;
+        }
+
+        if (!startTime.HasValue)
+        {
+            StintStatus = "Укажите время начала в формате HH:mm";
             return;
         }
 
         // В полях ввода только время, поэтому дату берём от начала выбранного стинта.
-        var baseDate = SelectedStint.StartedAtUtc.ToLocalTime().Date;
+        var baseDate = row.StartedAtUtc.ToLocalTime().Date;
 
-        DateTime? startedAtUtc = startTime.HasValue
-            ? DateTime.SpecifyKind(baseDate + startTime.Value, DateTimeKind.Local).ToUniversalTime()
-            : null;
+        var startedAtUtc = DateTime.SpecifyKind(baseDate + startTime.Value, DateTimeKind.Local).ToUniversalTime();
 
         DateTime? endedAtUtc = null;
         if (endTime.HasValue)
         {
             var endLocal = baseDate + endTime.Value;
             // стинт может заканчиваться уже после полуночи
-            if (startTime.HasValue && endLocal <= baseDate + startTime.Value)
+            if (endLocal <= baseDate + startTime.Value)
                 endLocal = endLocal.AddDays(1);
             endedAtUtc = DateTime.SpecifyKind(endLocal, DateTimeKind.Local).ToUniversalTime();
         }
 
         try
         {
-            var ok = await _api.PatchStintAsync(
-                SelectedStint.StintId,
-                string.IsNullOrWhiteSpace(EditDriver) ? null : EditDriver.Trim(),
+            StintStatus = "Сохранение…";
+            var (updated, error) = await _api.PatchStintAsync(
+                row.StintId,
+                EditDriver.Trim(),
                 startedAtUtc,
                 endedAtUtc);
-            ConnectionStatus = ok ? "Стинт обновлён" : "Не удалось обновить стинт";
+
+            if (updated == null)
+            {
+                StintStatus = "Не удалось сохранить стинт: " + (error ?? "неизвестная ошибка");
+                return;
+            }
+
+            ApplyStintToRow(row, updated);
+            StintStatus = $"Сохранено: {updated.Driver} · {FormatEditTime(updated.StartedAt)}–" +
+                          (updated.EndedAt.HasValue ? FormatEditTime(updated.EndedAt) : "…");
+            ConnectionStatus = "Стинт обновлён";
         }
         catch (Exception ex)
         {
             // сетевая ошибка раньше уходила необработанной из команды
-            ConnectionStatus = "Не удалось обновить стинт: " + ex.Message;
+            StintStatus = "Не удалось сохранить стинт: " + ex.Message;
         }
+    }
+
+    /// <summary>Применяет ответ сервера к строке таблицы, чтобы изменения были видны сразу.</summary>
+    private static void ApplyStintToRow(StintRow row, StintDto dto)
+    {
+        row.Driver = dto.Driver;
+        row.DriverIndex = dto.DriverIndex;
+        row.StartedAtUtc = dto.StartedAt;
+        row.EndedAtUtc = dto.EndedAt;
+        row.StartReal = dto.StartedAt.ToLocalTime().ToString("HH:mm:ss");
+        row.EndReal = dto.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—";
+        row.IsOpen = dto.EndedAt == null;
+        row.Duration = FormatDuration(dto.EndedAt ?? DateTime.UtcNow, dto.StartedAt);
     }
 
     /// <summary>Разбирает время в формате HH:mm (пустая строка — поле не задано).</summary>
@@ -1154,6 +1200,7 @@ public sealed partial class MainViewModel : ObservableObject
         EditDriver = value?.Driver ?? "";
         EditStart = FormatEditTime(value?.StartedAtUtc);
         EditEnd = FormatEditTime(value?.EndedAtUtc);
+        StintStatus = "";
     }
 
     partial void OnSelectedPageIndexChanged(int value)

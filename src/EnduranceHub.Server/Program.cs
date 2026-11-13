@@ -117,6 +117,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<EnduranceHubDbContext>();
     await db.Database.MigrateAsync();
+
+    // После перезапуска сервера память пуста: поднимаем историю последнего события,
+    // чтобы стинты были видны и их можно было редактировать.
+    await scope.ServiceProvider.GetRequiredService<SessionStateService>()
+        .LoadLatestStintHistoryAsync();
 }
 
 app.Run();
