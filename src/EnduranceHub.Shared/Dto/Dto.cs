@@ -126,6 +126,55 @@ public sealed class StintErrorDto
     public string Error { get; set; } = "";
 }
 
+/// <summary>
+/// Живые давления и температуры шин, а также топливо из страницы Physics памяти ACC.
+/// Приходят от агента, запущенного на ПК пилота, и нужны калькулятору давления и споттеру.
+/// </summary>
+public sealed class TyreStateDto
+{
+    public DateTime TimestampUtc { get; set; }
+    /// <summary>Топливо в баке, л.</summary>
+    public float FuelLiters { get; set; }
+    /// <summary>Давления, psi: переднее левое, переднее правое, заднее левое, заднее правое.</summary>
+    public float[] Pressures { get; set; } = new float[4];
+    /// <summary>Температура ядра шин, °C (тот же порядок).</summary>
+    public float[] CoreTemperatures { get; set; } = new float[4];
+
+    public TyreStateDto Clone() => new()
+    {
+        TimestampUtc = TimestampUtc,
+        FuelLiters = FuelLiters,
+        Pressures = (float[])Pressures.Clone(),
+        CoreTemperatures = (float[])CoreTemperatures.Clone(),
+    };
+}
+
+/// <summary>
+/// План пит-стопа, который споттер собирает во время гонки и показывает пилоту.
+/// ACC не даёт менять пит-стратегию чужой машины по сети, поэтому план — это
+/// подсказка: пилот вводит эти значения в пит-меню (MFD).
+/// </summary>
+public sealed class PitPlanDto
+{
+    public string Id { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; }
+    /// <summary>Пилот, которому адресован план (кто сейчас за рулём).</summary>
+    public string Driver { get; set; } = "";
+    /// <summary>Сколько топлива добавить, л (0 — не заправлять).</summary>
+    public double FuelLiters { get; set; }
+    public bool ChangeTyres { get; set; }
+    /// <summary>«Сухо» или «Дождь».</summary>
+    public string TyreCompound { get; set; } = "";
+    /// <summary>Холодные давления для пит-меню, psi (ПЛ/ПП/ЗЛ/ЗП). Пусто — не менять.</summary>
+    public double[] Pressures { get; set; } = Array.Empty<double>();
+    public bool Repair { get; set; }
+    public bool DriverSwap { get; set; }
+    /// <summary>Короткий комментарий споттера.</summary>
+    public string Note { get; set; } = "";
+
+    public PitPlanDto Clone() => (PitPlanDto)MemberwiseClone();
+}
+
 public sealed class TelemetrySampleDto
 {
     public string DriverId { get; set; } = "";
@@ -178,6 +227,10 @@ public sealed class SessionSnapshotDto
     public List<CarStateDto> Cars { get; set; } = new();
     public StintDto? CurrentStint { get; set; }
     public List<StintDto> Stints { get; set; } = new();
+    /// <summary>Живые давления/температуры шин и топливо нашего автомобиля (от агента).</summary>
+    public TyreStateDto? Tyres { get; set; }
+    /// <summary>Последний план пит-стопа от споттера (null — плана нет).</summary>
+    public PitPlanDto? PitPlan { get; set; }
 }
 
 public sealed class SetupCarDto

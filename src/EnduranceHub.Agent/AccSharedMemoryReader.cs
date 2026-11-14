@@ -16,7 +16,13 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
     private const int PacketIdOffset = 0;
     private const int GasOffset = 4;
     private const int BrakeOffset = 8;
+    private const int FuelOffset = 12;
     private const int SteerAngleOffset = 24;
+    // SPageFilePhysics, pack(4): wheelLoad[4] с 72, wheelsPressure[4] с 88,
+    // tyreCoreTemperature[4] с 152. Смещения совпадают с gas/brake/steerAngle выше.
+    private const int TyrePressureOffset = 88;
+    private const int TyreCoreTempOffset = 152;
+    private const int TyreMinCapacity = TyreCoreTempOffset + 4 * 4;
 
     // Смещения в SPageFileGraphic (ACC, pack(4)): status — 4, flag игрока — 1224, глобальные флаги — с 1548.
     private const int GStatusOffset = 4;
@@ -146,6 +152,53 @@ public sealed class AccSharedMemoryReader : IAccDataSource, IDisposable
             catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException or IOException)
             {
                 // отображение устарело (ACC закрыт) — отпустим и подключимся заново при следующем чтении
+                _view?.Dispose();
+                _physics?.Dispose();
+                _view = null;
+                _physics = null;
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Давления/температуры шин и топливо. Читаются реже, чем сэмплы газа/тормоза
+    /// (раз на отправляемую пачку), поэтому отдельный метод.
+    /// </summary>
+    public bool TryReadTyres(out TyreReading tyres)
+    {
+        tyres = default;
+        var view = _view;
+        if (view == null)
+        {
+            AttachPhysics();
+            view = _view;
+            if (view == null) return false;
+        }
+
+        lock (_lock)
+        {
+            try
+            {
+                if (view.Capacity < TyreMinCapacity) return false;
+
+                var reading = new TyreReading(
+                    view.ReadSingle(FuelOffset),
+                    view.ReadSingle(TyrePressureOffset),
+                    view.ReadSingle(TyrePressureOffset + 4),
+                    view.ReadSingle(TyrePressureOffset + 8),
+                    view.ReadSingle(TyrePressureOffset + 12),
+                    view.ReadSingle(TyreCoreTempOffset),
+                    view.ReadSingle(TyreCoreTempOffset + 4),
+                    view.ReadSingle(TyreCoreTempOffset + 8),
+                    view.ReadSingle(TyreCoreTempOffset + 12));
+
+                if (!reading.IsValid) return false;
+                tyres = reading;
+                return true;
+            }
+            catch (Exception ex) when (ex is AccessViolationException or ObjectDisposedException or ArgumentException or IOException)
+            {
                 _view?.Dispose();
                 _physics?.Dispose();
                 _view = null;

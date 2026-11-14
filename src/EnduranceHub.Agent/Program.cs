@@ -160,6 +160,8 @@ try
             {
                 // флаги отправляем с каждой пачкой, даже пустой (ACC на паузе / в меню — сэмплов нет, флаги нужны)
                 FlagReading? flags = source.TryReadFlags(out var fr) ? fr : null;
+                // давления/топливо читаем раз на пачку: они меняются медленнее газа и тормоза
+                TyreReading? tyres = source.TryReadTyres(out var tr) ? tr : null;
 
                 var count = Math.Min(pending.Count, MaxBatchSize);
                 var chunk = new List<TelemetryReading>(count);
@@ -173,7 +175,7 @@ try
                     }
                 }
 
-                var result = await client.SendBatchAsync(chunk, flags, cts.Token);
+                var result = await client.SendBatchAsync(chunk, flags, tyres, cts.Token);
                 lastFlush = DateTime.UtcNow;
 
                 if (result == SendResult.Sent)

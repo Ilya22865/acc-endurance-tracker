@@ -12,7 +12,7 @@
         WindowStartupLocation="CenterScreen"
         FontFamily="Inter, Segoe UI, sans-serif">
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="216,*">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" ColumnDefinitions="216,*">
 
     <!-- ===================== ВЕРХНЯЯ ПОЛОСА ===================== -->
     <Border Grid.ColumnSpan="2" Background="{DynamicResource SurfaceBrush}"
@@ -106,8 +106,26 @@
       </StackPanel>
     </Border>
 
+    <!-- ===================== ПЛАН ПИТ-СТОПА ОТ СПОТТЕРА ===================== -->
+    <Border Grid.Row="2" Grid.ColumnSpan="2" Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1"
+            IsVisible="{Binding ShowPitPlan}">
+      <Grid ColumnDefinitions="4,*,Auto" ColumnSpacing="16" Margin="24,10">
+        <Border Background="{DynamicResource AccentBrush}" CornerRadius="2"/>
+        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="{Binding PitPlanTitle}" FontWeight="Bold" FontSize="12.5"
+                     Foreground="{DynamicResource AccentBrush}"/>
+          <TextBlock Text="{Binding PitPlanDetails}" FontSize="12.5" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding PitPlanNote}" Classes="muted" FontSize="11.5" TextWrapping="Wrap"
+                     IsVisible="{Binding HasPitPlanNote}"/>
+        </StackPanel>
+        <Button Grid.Column="2" Content="Понятно" Classes="ghost"
+                Command="{Binding DismissPitPlanCommand}" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+
     <!-- ===================== НАВИГАЦИЯ ===================== -->
-    <Border Grid.Row="2" Background="{DynamicResource RailBrush}"
+    <Border Grid.Row="3" Background="{DynamicResource RailBrush}"
             BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
       <DockPanel>
         <!-- Логотип и название -->
@@ -147,7 +165,7 @@
     </Border>
 
     <!-- ===================== СТРАНИЦЫ ===================== -->
-    <Panel Grid.Row="2" Grid.Column="1" Margin="24,18,24,20">
+    <Panel Grid.Row="3" Grid.Column="1" Margin="24,18,24,20">
 
       <!-- ============ 0 · ПОЗИЦИИ ============ -->
       <Grid IsVisible="{Binding IsPage0}" ColumnDefinitions="*,340" ColumnSpacing="16">
@@ -592,8 +610,189 @@
         </Border>
       </Grid>
 
-      <!-- ============ 4 · СЕТАП ============ -->
-      <Grid IsVisible="{Binding IsPage4}" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+      <!-- ============ 4 · ШИНЫ И ПИТ-СТОП ============ -->
+      <Grid IsVisible="{Binding IsPage4}" ColumnDefinitions="*,380" ColumnSpacing="16">
+
+        <!-- живые шины и калькулятор -->
+        <Grid RowDefinitions="Auto,*" RowSpacing="16">
+
+          <Border Classes="card">
+            <StackPanel>
+              <Border Classes="cardhead" Padding="16,10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Classes="h2" Text="Живые шины"/>
+                  <TextBlock Grid.Column="1" Classes="muted" Margin="12,0,0,0" VerticalAlignment="Center"
+                             Text="{Binding TyreStatusText}"/>
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Classes="label" Text="ТОПЛИВО" VerticalAlignment="Center"/>
+                    <TextBlock Classes="mono" FontWeight="SemiBold" Text="{Binding TyreFuelText}"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <Grid Margin="16,14" ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+                <Border Classes="panel" Padding="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="ПЕРЕД ЛЕВО"/>
+                    <TextBlock Classes="mono" FontSize="20" FontWeight="SemiBold" Text="{Binding TyreFlText}"/>
+                    <TextBlock Classes="muted" FontSize="11.5" Text="{Binding TyreTempFlText}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Classes="panel" Padding="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="ПЕРЕД ПРАВО"/>
+                    <TextBlock Classes="mono" FontSize="20" FontWeight="SemiBold" Text="{Binding TyreFrText}"/>
+                    <TextBlock Classes="muted" FontSize="11.5" Text="{Binding TyreTempFrText}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Classes="panel" Padding="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="ЗАД ЛЕВО"/>
+                    <TextBlock Classes="mono" FontSize="20" FontWeight="SemiBold" Text="{Binding TyreRlText}"/>
+                    <TextBlock Classes="muted" FontSize="11.5" Text="{Binding TyreTempRlText}"/>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="3" Classes="panel" Padding="12">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="ЗАД ПРАВО"/>
+                    <TextBlock Classes="mono" FontSize="20" FontWeight="SemiBold" Text="{Binding TyreRrText}"/>
+                    <TextBlock Classes="muted" FontSize="11.5" Text="{Binding TyreTempRrText}"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="1" Classes="card">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Classes="cardhead" Padding="16,10">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="h2" Text="Калькулятор холодного давления"/>
+                  <TextBlock Grid.Column="1" Classes="muted" Margin="12,0,0,0" VerticalAlignment="Center"
+                             Text="горячее → холодное"/>
+                  <Button Grid.Column="2" Content="Сухо 27.7" Classes="ghost" Command="{Binding SetDryTargetCommand}"/>
+                  <Button Grid.Column="3" Content="Дождь 30.0" Classes="ghost" Command="{Binding SetWetTargetCommand}"/>
+                </Grid>
+              </Border>
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16,12" Spacing="12">
+                  <Grid ColumnDefinitions="Auto,100,*,Auto" ColumnSpacing="12">
+                    <TextBlock Classes="label" Text="ЦЕЛЕВОЕ ГОРЯЧЕЕ, PSI" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Text="{Binding CalcTargetText}"/>
+                    <TextBlock Grid.Column="2" Classes="muted" FontSize="11.5" VerticalAlignment="Center"
+                               TextWrapping="Wrap" Text="{Binding CalcHint}"/>
+                    <TextBlock Grid.Column="3" Classes="mono" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentBrush}"
+                               IsVisible="{Binding CalcHasResult}" Text="готово"/>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+                    <StackPanel Spacing="5">
+                      <TextBlock Classes="label" Text="ПЕРЕД ЛЕВО"/>
+                      <TextBox Text="{Binding CalcColdFl}" PlaceholderText="холодное"/>
+                      <TextBlock Classes="muted" FontSize="11" Text="{Binding TyreFlText, StringFormat='сейчас {0}'}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="mono" FontSize="22" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" Text="{Binding CalcOutFl}"/>
+                        <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Bottom" Text="{Binding CalcDeltaFl}"/>
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <TextBlock Classes="label" Text="ПЕРЕД ПРАВО"/>
+                      <TextBox Text="{Binding CalcColdFr}" PlaceholderText="холодное"/>
+                      <TextBlock Classes="muted" FontSize="11" Text="{Binding TyreFrText, StringFormat='сейчас {0}'}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="mono" FontSize="22" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" Text="{Binding CalcOutFr}"/>
+                        <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Bottom" Text="{Binding CalcDeltaFr}"/>
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="5">
+                      <TextBlock Classes="label" Text="ЗАД ЛЕВО"/>
+                      <TextBox Text="{Binding CalcColdRl}" PlaceholderText="холодное"/>
+                      <TextBlock Classes="muted" FontSize="11" Text="{Binding TyreRlText, StringFormat='сейчас {0}'}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="mono" FontSize="22" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" Text="{Binding CalcOutRl}"/>
+                        <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Bottom" Text="{Binding CalcDeltaRl}"/>
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Spacing="5">
+                      <TextBlock Classes="label" Text="ЗАД ПРАВО"/>
+                      <TextBox Text="{Binding CalcColdRr}" PlaceholderText="холодное"/>
+                      <TextBlock Classes="muted" FontSize="11" Text="{Binding TyreRrText, StringFormat='сейчас {0}'}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="mono" FontSize="22" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}" Text="{Binding CalcOutRr}"/>
+                        <TextBlock Classes="muted" FontSize="11" VerticalAlignment="Bottom" Text="{Binding CalcDeltaRr}"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Grid>
+
+                  <Border Classes="panel" Padding="12">
+                    <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap"
+                               Text="Формула: новое холодное = холодное сейчас + (целевое горячее − горячее сейчас). Результат ограничен 19.0–33.0 psi и округлён до 0.1. Горячие давления приходят от агента в реальном времени."/>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </DockPanel>
+          </Border>
+        </Grid>
+
+        <!-- план пит-стопа -->
+        <Border Grid.Column="1" Classes="card" VerticalAlignment="Top">
+          <StackPanel>
+            <Border Classes="cardhead" Padding="16,10">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Classes="h2" Text="План пит-стопа"/>
+                <TextBlock Grid.Column="1" Classes="muted" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Text="{Binding PitDriverText}"/>
+              </Grid>
+            </Border>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="560">
+              <StackPanel Margin="16,12" Spacing="12">
+                <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap"
+                           Text="ACC не даёт менять пит-стратегию чужой машины по сети. План мгновенно появится у всех клиентов баннером, а пилот вводит значения в пит-меню (MFD)."/>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="ТОПЛИВО, Л"/>
+                    <TextBox Text="{Binding PitFuel}" PlaceholderText="0"/>
+                  </StackPanel>
+                  <CheckBox Grid.Column="1" Content="Ремонт" IsChecked="{Binding PitRepair}" VerticalAlignment="Bottom"/>
+                </Grid>
+
+                <CheckBox Content="Менять шины" IsChecked="{Binding PitChangeTyres}"/>
+
+                <StackPanel Spacing="4" IsVisible="{Binding PitChangeTyres}">
+                  <TextBlock Classes="label" Text="СОСТАВ"/>
+                  <ListBox Classes="seg" SelectedIndex="{Binding PitCompoundIndex, Mode=TwoWay}">
+                    <ListBoxItem Content="Сухо"/>
+                    <ListBoxItem Content="Дождь"/>
+                  </ListBox>
+                </StackPanel>
+
+                <CheckBox Content="Давления из калькулятора" IsChecked="{Binding PitUseCalcPressures}"
+                          IsVisible="{Binding PitChangeTyres}"/>
+                <CheckBox Content="Смена пилота" IsChecked="{Binding PitDriverSwap}"/>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="label" Text="КОММЕНТАРИЙ"/>
+                  <TextBox Text="{Binding PitNote}" PlaceholderText="например: аккуратно на выходе из боксов"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Отправить пилоту" Command="{Binding SendPitPlanCommand}" Classes="primary"/>
+                  <Button Content="Снять план" Command="{Binding ClearPitPlanCommand}" Classes="ghost"/>
+                </StackPanel>
+                <TextBlock Classes="muted" FontSize="11.5" TextWrapping="Wrap" Text="{Binding PitStatus}"/>
+              </StackPanel>
+            </ScrollViewer>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ============ 5 · СЕТАП ============ -->
+      <Grid IsVisible="{Binding IsPage5}" RowDefinitions="Auto,Auto,*" RowSpacing="12">
         <Border Classes="card" Padding="16,12">
           <Grid ColumnDefinitions="Auto,220,Auto,240,*,Auto,Auto" ColumnSpacing="12">
             <TextBlock Text="Авто" Classes="muted" VerticalAlignment="Center"/>
@@ -680,7 +879,7 @@
       </Grid>
 
       <!-- ============ 5 · КАРТА ============ -->
-      <Grid IsVisible="{Binding IsPage5}" ColumnDefinitions="*,260" ColumnSpacing="16">
+      <Grid IsVisible="{Binding IsPage6}" ColumnDefinitions="*,260" ColumnSpacing="16">
         <Border Classes="card">
           <Grid RowDefinitions="Auto,*">
             <Border Classes="cardhead" Padding="16,12">
@@ -716,7 +915,7 @@
       </Grid>
 
       <!-- ============ 6 · СЕРВЕР ============ -->
-      <Grid IsVisible="{Binding IsPage6}" RowDefinitions="Auto,*" RowSpacing="16">
+      <Grid IsVisible="{Binding IsPage7}" RowDefinitions="Auto,*" RowSpacing="16">
         <Border Classes="card" Padding="16,12">
           <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -745,7 +944,7 @@
       </Grid>
 
       <!-- ============ 7 · АГЕНТ ============ -->
-      <Grid IsVisible="{Binding IsPage7}" RowDefinitions="Auto,Auto,*" RowSpacing="16">
+      <Grid IsVisible="{Binding IsPage8}" RowDefinitions="Auto,Auto,*" RowSpacing="16">
         <Border Classes="card" Padding="16,12">
           <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
             <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
@@ -790,7 +989,7 @@
       </Grid>
 
       <!-- ============ 8 · НАСТРОЙКИ ============ -->
-      <ScrollViewer IsVisible="{Binding IsPage8}" VerticalScrollBarVisibility="Auto">
+      <ScrollViewer IsVisible="{Binding IsPage9}" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="16" MaxWidth="760" HorizontalAlignment="Left" Margin="0,0,0,20">
           <TextBlock Classes="h1" Text="Настройки"/>
 
@@ -854,7 +1053,7 @@
     </Panel>
 
     <!-- ===================== СТРОКА СОСТОЯНИЯ ===================== -->
-    <Border Grid.Row="3" Grid.ColumnSpan="2" Background="{DynamicResource RailBrush}" Padding="24,0" Height="28"
+    <Border Grid.Row="4" Grid.ColumnSpan="2" Background="{DynamicResource RailBrush}" Padding="24,0" Height="28"
             BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
@@ -869,7 +1068,7 @@
     <!-- ===================== ОБУЧЕНИЕ ===================== -->
     <!-- Затемнение с «окном» вокруг нужного элемента и карточка с пояснением.
          Геометрия считается в MainWindow.axaml.cs по реальным границам контрола. -->
-    <Panel x:Name="TourOverlay" Grid.RowSpan="4" Grid.ColumnSpan="2"
+    <Panel x:Name="TourOverlay" Grid.RowSpan="5" Grid.ColumnSpan="2"
            Background="Transparent" IsVisible="False" ZIndex="100">
       <Canvas x:Name="TourCanvas">
         <Rectangle x:Name="TourDimTop" Fill="#D9080A0C"/>

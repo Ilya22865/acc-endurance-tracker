@@ -63,6 +63,11 @@ public sealed class SessionStateService
     private string _lastEventText = "";
     private DateTime _lastEventAt = DateTime.MinValue;
 
+    // Живые давления/температуры шин и топливо от агента текущего пилота.
+    private TyreStateDto? _liveTyres;
+    // Последний план пит-стопа от споттера (подсказка пилоту в пит-меню).
+    private PitPlanDto? _pitPlan;
+
     // Контур пишется с ЛЮБОЙ машины: у каждой свой буфер круга. Раньше писали только
     // с «нашей» машины, а её определение (OurCarRaceNumber/FocusedCarIndex) в онлайне
     // часто ошибочно — и карта не записывалась, даже если чистый круг проехал кто-то другой.
@@ -392,7 +397,16 @@ public sealed class SessionStateService
                     "Focused car index {CarIndex} is treated as our car", update.FocusedCarIndex);
             }
 
+            var wasActive = _isSessionActive;
             _isSessionActive = update.Phase == BC.SessionPhase.Session || update.Phase == BC.SessionPhase.FormationLap;
+
+            // Сессия закончилась (клетчатый флаг/выход в меню): план пит-стопа и живые
+            // давления больше не актуальны. При смене сессии их всё равно сбросит ResetForNewSession.
+            if (wasActive && !_isSessionActive)
+            {
+                _pitPlan = null;
+                _liveTyres = null;
+            }
         }
         MaybeBroadcast();
     }
@@ -458,6 +472,8 @@ public sealed class SessionStateService
         _clock.Reset();
         _lastAccidentAt = DateTime.MinValue;
         _lastEventText = "";
+        _liveTyres = null;
+        _pitPlan = null;
     }
 
     public void ProcessRealtimeCarUpdate(RealtimeCarUpdate update)
@@ -561,6 +577,8 @@ public sealed class SessionStateService
             return;
 
         CloseCurrentStint();
+        // План пит-стопа был адресован предыдущему пилоту — новому он уже не актуален.
+        _pitPlan = null;
 
         var driverName = state.Driver;
         if (string.IsNullOrEmpty(driverName) && _entryList.TryGetValue(update.CarIndex, out var car))
@@ -1250,7 +1268,39 @@ public sealed class SessionStateService
                 Cars = cars,
                 CurrentStint = _currentStint?.Clone(),
                 Stints = _stints.Select(s => s.Clone()).ToList(),
+                Tyres = _liveTyres?.Clone(),
+                PitPlan = _pitPlan?.Clone(),
             };
+        }
+    }
+
+    /// <summary>
+    /// Публикует план пит-стопа от споттера. План хранится в памяти и попадает
+    /// в каждый снимок состояния, поэтому его видят все клиенты, включая тех, кто
+    /// подключился позже.
+    /// </summary>
+    public PitPlanDto SetPitPlan(PitPlanDto plan)
+    {
+        lock (_lock)
+        {
+            plan.Id = string.IsNullOrWhiteSpace(plan.Id) ? Guid.NewGuid().ToString("N") : plan.Id;
+            plan.CreatedAtUtc = DateTime.UtcNow;
+            _pitPlan = plan;
+            return plan.Clone();
+        }
+    }
+
+    /// <summary>Снимает план пит-стопа. С указанием id — только если он совпадает с текущим.</summary>
+    public bool ClearPitPlan(string? id = null)
+    {
+        lock (_lock)
+        {
+            if (_pitPlan == null) return false;
+            if (!string.IsNullOrWhiteSpace(id) &&
+                !string.Equals(_pitPlan.Id, id, StringComparison.Ordinal))
+                return false;
+            _pitPlan = null;
+            return true;
         }
     }
 
@@ -1461,7 +1511,8 @@ public sealed class SessionStateService
     /// агент зарегистрирован. В БД они пишутся только когда сессия идёт и за рулём именно этот пилот.
     /// (Раньше при несовпадении пилота/сессии данные просто выбрасывались, и графики были бы пустыми.)
     /// </summary>
-    public TelemetryAcceptResult AcceptTelemetryBatch(string agentId, IReadOnlyList<(float Gas, float Brake, float SteerAngle)> readings)
+    public TelemetryAcceptResult AcceptTelemetryBatch(string agentId,
+        IReadOnlyList<(float Gas, float Brake, float SteerAngle)> readings, TyreStateDto? tyres = null)
     {
         lock (_lock)
         {
@@ -1473,6 +1524,14 @@ public sealed class SessionStateService
             // После смены пилота пакеты «старого» агента больше не попадают в эфир и в БД.
             var isCurrentDriver = stint == null || stint.DriverIndex == agentDriverIndex;
             var persist = _isSessionActive && stint != null && stint.DriverIndex == agentDriverIndex;
+
+            // Давления нужны только от того, кто сейчас за рулём: иначе два агента
+            // (например, на ПК напарника) будут перебивать показания друг друга.
+            if (tyres != null && isCurrentDriver)
+            {
+                tyres.TimestampUtc = DateTime.UtcNow;
+                _liveTyres = tyres;
+            }
 
             // имя пилота для подписи на графиках
             string driverName;

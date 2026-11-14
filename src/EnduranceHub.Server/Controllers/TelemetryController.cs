@@ -36,8 +36,20 @@ public sealed class TelemetryController : ControllerBase
             .Select(s => (s.Gas, s.Brake, s.SteerAngle))
             .ToList();
 
+        // Давления/температуры шин и топливо (последний снимок с каждой пачкой).
+        TyreStateDto? tyres = null;
+        if (request.Tyres is { Pressures.Length: 4 } t)
+        {
+            tyres = new TyreStateDto
+            {
+                FuelLiters = t.FuelLiters,
+                Pressures = t.Pressures,
+                CoreTemperatures = t.CoreTemperatures is { Length: 4 } temps ? temps : new float[4],
+            };
+        }
+
         // Пустая пачка тоже проходит проверку регистрации — агент шлёт «только флаги» даже когда ACC на паузе
-        var result = _sessionState.AcceptTelemetryBatch(request.DriverId, readings);
+        var result = _sessionState.AcceptTelemetryBatch(request.DriverId, readings, tyres);
 
         // 409 — сигнал агенту, что регистрация потеряна (например, сервер перезапустили): нужно зарегистрироваться заново
         if (!result.Registered)
@@ -92,6 +104,15 @@ public sealed class TelemetryController : ControllerBase
         public string DriverId { get; set; } = "";
         public List<AgentSample>? Samples { get; set; }
         public AgentFlags? Flags { get; set; }
+        public AgentTyres? Tyres { get; set; }
+    }
+
+    /// <summary>Давления/температуры шин и топливо — последний снимок страницы Physics.</summary>
+    public sealed class AgentTyres
+    {
+        public float FuelLiters { get; set; }
+        public float[] Pressures { get; set; } = Array.Empty<float>();
+        public float[] CoreTemperatures { get; set; } = Array.Empty<float>();
     }
 
     public sealed class AgentFlags

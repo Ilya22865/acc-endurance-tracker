@@ -117,9 +117,10 @@ public sealed class ServerClient : IDisposable
     public async Task<SendResult> SendBatchAsync(
         IReadOnlyList<TelemetryReading> readings,
         FlagReading? flags,
+        TyreReading? tyres,
         CancellationToken ct = default)
     {
-        if (readings.Count == 0 && flags == null) return SendResult.Sent;
+        if (readings.Count == 0 && flags == null && tyres == null) return SendResult.Sent;
 
         // DriverId на сервере — это тот же AgentId, под которым агент зарегистрировался.
         // Раньше здесь уходило «AgentId:DriverIndex», сервер не находил регистрацию и отвечал 409 на каждую пачку —
@@ -147,6 +148,16 @@ public sealed class ServerClient : IDisposable
                     f.Green,
                     f.Chequered,
                     f.Red,
+                }
+                : null,
+            // Давления нужны калькулятору и споттеру, поэтому шлём последний снимок
+            // с каждой пачкой (не по сэмплам: 40 Гц тут избыточны).
+            Tyres = tyres is TyreReading t
+                ? new
+                {
+                    t.FuelLiters,
+                    t.Pressures,
+                    t.CoreTemperatures,
                 }
                 : null,
         };

@@ -117,9 +117,9 @@ public partial class MainWindow : Window
         // скрыта, автоскролл не тратил время на невидимый список.
         vm.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(MainViewModel.IsPage6))
+            if (e.PropertyName == nameof(MainViewModel.IsPage7))
                 Dispatcher.UIThread.Post(() => ScrollLogToEnd(serverLog), DispatcherPriority.Background);
-            else if (e.PropertyName == nameof(MainViewModel.IsPage7))
+            else if (e.PropertyName == nameof(MainViewModel.IsPage8))
                 Dispatcher.UIThread.Post(() => ScrollLogToEnd(agentLog), DispatcherPriority.Background);
         };
 

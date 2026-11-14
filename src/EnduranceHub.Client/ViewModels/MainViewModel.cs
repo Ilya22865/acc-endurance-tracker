@@ -36,6 +36,7 @@ public sealed partial class MainViewModel : ObservableObject
         new NavItem { Title = "Стинты", Icon = Geometry.Parse("M20 13 A8 8 0 1 1 4 13 A8 8 0 1 1 20 13 M12 9v4l2.5 2.5M9.5 2h5") },
         new NavItem { Title = "Телеметрия", Icon = Geometry.Parse("M3 12h4l3-8 4 16 3-8h4") },
         new NavItem { Title = "Радар", Icon = Geometry.Parse("M21 12 A9 9 0 1 1 3 12 A9 9 0 1 1 21 12 M17 12 A5 5 0 1 1 7 12 A5 5 0 1 1 17 12 M12 12 L18 6") },
+        new NavItem { Title = "Шины", Icon = Geometry.Parse("M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8") },
         new NavItem { Title = "Сетап", Icon = Geometry.Parse("M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1 M17 6 A2 2 0 1 1 13 6 A2 2 0 1 1 17 6 M11 12 A2 2 0 1 1 7 12 A2 2 0 1 1 11 12 M19 18 A2 2 0 1 1 15 18 A2 2 0 1 1 19 18") },
         new NavItem { Title = "Карта", Icon = Geometry.Parse("M9 4 L3 6.5 v13 L9 17 l6 3 6-2.5 v-13 L15 7 L9 4 Z M9 4v13 M15 7v13") },
         new NavItem { Title = "Сервер", IsGroupStart = true, Icon = Geometry.Parse("M5 4 H19 A2 2 0 0 1 21 6 V8 A2 2 0 0 1 19 10 H5 A2 2 0 0 1 3 8 V6 A2 2 0 0 1 5 4 Z M5 14 H19 A2 2 0 0 1 21 16 V18 A2 2 0 0 1 19 20 H5 A2 2 0 0 1 3 18 V16 A2 2 0 0 1 5 14 Z M7 7h.01M7 17h.01") },
@@ -65,25 +66,29 @@ public sealed partial class MainViewModel : ObservableObject
             "Машины вокруг вас в радиусе до 60 метров. Помогает не потерять соперника в трафике и на выезде из боксов.",
             Target: "nav", NavIndex: 3, PageIndex: 3),
         new TourStep(
+            "Шины и пит-стоп",
+            "Живые давления и температуры колёс из ACC. Калькулятор пересчитывает горячие давления в холодные для сетапа, а споттер может собрать план пит-стопа: топливо, шины, ремонт и смену пилота.",
+            Target: "nav", NavIndex: 4, PageIndex: 4),
+        new TourStep(
             "Сетап",
             "Файлы настройки из папки ACC: машина, трасса и параметры. Можно посмотреть сетап, не сворачивая игру.",
-            Target: "nav", NavIndex: 4, PageIndex: 4),
+            Target: "nav", NavIndex: 5, PageIndex: 5),
         new TourStep(
             "Карта трассы",
             "Контур трассы и положение всех машин. Контур записывается автоматически после чистого круга без пит-стопа.",
-            Target: "nav", NavIndex: 5, PageIndex: 5),
+            Target: "nav", NavIndex: 6, PageIndex: 6),
         new TourStep(
             "Сервер",
             "Локальный сервер EnduranceHub и его лог. Нажмите «Запустить», чтобы поднять сервер на этом ПК.",
-            Target: "nav", NavIndex: 6, PageIndex: 6),
+            Target: "nav", NavIndex: 7, PageIndex: 7),
         new TourStep(
             "Агент",
             "Агент читает телеметрию из ACC. Запускайте его на ПК того, кто сейчас за рулём: при смене пилота стинт разделится автоматически.",
-            Target: "nav", NavIndex: 7, PageIndex: 7),
+            Target: "nav", NavIndex: 8, PageIndex: 8),
         new TourStep(
             "Настройки",
             "Зеркало радара, экспорт данных и обновления. Здесь же можно пройти этот тур заново.",
-            Target: "nav", NavIndex: 8, PageIndex: 8),
+            Target: "nav", NavIndex: 9, PageIndex: 9),
         new TourStep(
             "Подключение к серверу",
             "Адрес сервера и кнопка «Подключить». Для локального запуска оставьте localhost:5261 — клиент подключится к серверу на этом же ПК.",
@@ -714,6 +719,8 @@ public sealed partial class MainViewModel : ObservableObject
         RecordGapHistory(snapshot.Cars, rt.IsRace);
         UpdateStints(snapshot);
         UpdateMap(snapshot);
+        ApplyTyres(snapshot.Tyres);
+        ApplyPitPlan(snapshot.PitPlan);
 
         var our = snapshot.Cars.FirstOrDefault(c => c.IsOurCar);
         OurDriverText = our != null ? $"#{our.RaceNumber} · {our.Driver} · P{our.Position} · {our.Laps} кр." : "—";
@@ -1523,6 +1530,7 @@ public sealed partial class MainViewModel : ObservableObject
         _lastOutline.Clear();
         _lastDots.Clear();
         _recordedOutline = null;
+        ClearPitState();
         Telemetry.Clear();
         Standings.Clear();
         Stints.Clear();

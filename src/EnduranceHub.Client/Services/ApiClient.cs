@@ -138,6 +138,29 @@ public sealed class ApiClient : IDisposable
     public async Task<SetupBaseDto?> GetSetupBasePathAsync(CancellationToken ct = default)
         => await Http.GetFromJsonAsync<SetupBaseDto>($"{_baseUrl}/api/setups/base-path", ct);
 
+    /// <summary>Публикует план пит-стопа от споттера. Возвращает сохранённый план либо текст ошибки.</summary>
+    public async Task<(PitPlanDto? Plan, string? Error)> SendPitPlanAsync(PitPlanDto plan, CancellationToken ct = default)
+    {
+        using var resp = await Http.PostAsJsonAsync($"{_baseUrl}/api/pit/plan", plan, ct);
+        if (!resp.IsSuccessStatusCode)
+            return (null, $"сервер вернул HTTP {(int)resp.StatusCode}");
+
+        var saved = await resp.Content.ReadFromJsonAsync<PitPlanDto>(cancellationToken: ct);
+        return saved != null ? (saved, null) : (null, "сервер вернул пустой ответ");
+    }
+
+    /// <summary>Снимает план пит-стопа (например, если споттер передумал).</summary>
+    public async Task<(bool Ok, string? Error)> ClearPitPlanAsync(string? id = null, CancellationToken ct = default)
+    {
+        var url = $"{_baseUrl}/api/pit/plan";
+        if (!string.IsNullOrWhiteSpace(id)) url += $"?id={Uri.EscapeDataString(id)}";
+        using var resp = await Http.DeleteAsync(url, ct);
+        if (resp.IsSuccessStatusCode) return (true, null);
+        return (false, resp.StatusCode == System.Net.HttpStatusCode.NotFound
+            ? "активного плана нет"
+            : $"сервер вернул HTTP {(int)resp.StatusCode}");
+    }
+
     public void Dispose()
     {
         HttpClient http;
